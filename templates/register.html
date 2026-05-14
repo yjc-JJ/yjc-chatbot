@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}注册 - 智能聊天机器人{% endblock %}
+{% set hide_nav = true %}
+
+{% block extra_head %}
+<style>
+    .auth-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .auth-card {
+        width: 100%;
+        max-width: 420px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        overflow: hidden;
+    }
+    .auth-header {
+        text-align: center;
+        padding: 32px 32px 0;
+    }
+    .auth-header .logo { font-size: 2.5rem; margin-bottom: 12px; }
+    .auth-header h3 { font-weight: 700; color: #1a1a2e; }
+    .auth-header p { color: #9ca3af; font-size: 0.9rem; }
+    .auth-body { padding: 24px 32px 32px; }
+    .auth-body .form-control { border-radius: 10px; padding: 10px 14px; font-size: 0.95rem; }
+    .auth-body .btn { padding: 10px; font-weight: 600; font-size: 1rem; border-radius: 10px; }
+    .auth-footer { text-align: center; padding: 0 32px 24px; color: #6b7280; font-size: 0.9rem; }
+    .auth-footer a { color: #4f46e5; text-decoration: none; font-weight: 600; }
+    .auth-footer a:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="logo"><i class="bi bi-robot" style="color:#4f46e5;"></i></div>
+            <h3>智能聊天机器人</h3>
+            <p>基于知识库检索增强的智能对话系统</p>
+        </div>
+        <div class="auth-body">
+            <h5 class="text-center mb-3 fw-bold">用户注册</h5>
+            <div id="regError" class="alert alert-danger d-none"></div>
+            <form id="regForm" onsubmit="handleRegister(event)">
+                <div class="mb-3">
+                    <label class="form-label fw-medium">邮箱</label>
+                    <input type="text" class="form-control" id="email" placeholder="请输入邮箱" required autofocus>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-medium">密码</label>
+                    <input type="password" class="form-control" id="password" placeholder="请设置密码（至少4位）" required minlength="4">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-medium">确认密码</label>
+                    <input type="password" class="form-control" id="confirmPassword" placeholder="请再次输入密码" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-person-plus me-2"></i>注 册
+                </button>
+            </form>
+        </div>
+        <div class="auth-footer">
+            已有账号？<a href="/login">立即登录</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function handleRegister(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const errorEl = document.getElementById('regError');
+
+    if (!email || !password || !confirmPassword) {
+        errorEl.textContent = '请填写所有字段';
+        errorEl.classList.remove('d-none');
+        return;
+    }
+    if (password !== confirmPassword) {
+        errorEl.textContent = '两次输入的密码不一致';
+        errorEl.classList.remove('d-none');
+        return;
+    }
+    if (password.length < 4) {
+        errorEl.textContent = '密码至少4个字符';
+        errorEl.classList.remove('d-none');
+        return;
+    }
+    try {
+        const resp = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('注册成功，请登录', 'success');
+            setTimeout(() => { window.location.href = '/login'; }, 1000);
+        } else {
+            errorEl.textContent = data.detail || '注册失败';
+            errorEl.classList.remove('d-none');
+        }
+    } catch (e) {
+        errorEl.textContent = '网络错误，请稍后再试';
+        errorEl.classList.remove('d-none');
+    }
+}
+</script>
+{% endblock %}

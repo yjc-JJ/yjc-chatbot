@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% block title %}共享知识库 - 智能聊天机器人{% endblock %}
+
+{% block extra_head %}
+<style>
+    .nav-tabs .nav-link {
+        font-weight: 500;
+        border: none;
+        color: #6b7280;
+        padding: 12px 20px;
+    }
+    .nav-tabs .nav-link.active {
+        color: #4f46e5;
+        border-bottom: 3px solid #4f46e5;
+        background: transparent;
+    }
+    .knowledge-card {
+        transition: all 0.25s ease;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+    }
+    .knowledge-card:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+        border-color: #c7d2fe;
+    }
+    .avatar-sm {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #eef2ff;
+        flex-shrink: 0;
+    }
+    .avatar-fallback {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #4f46e5);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    .btn-action {
+        padding: 6px 14px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .search-box input {
+        border-radius: 20px;
+        padding-left: 16px;
+    }
+    .empty-state {
+        padding: 3rem 2rem;
+        text-align: center;
+        color: #9ca3af;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.6;
+    }
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 2px;
+        border: none;
+        color: #4f46e5;
+    }
+    .pagination .page-item.active .page-link {
+        background: #4f46e5;
+        color: #fff;
+    }
+    @media (max-width: 576px) {
+        .knowledge-card .d-flex.gap-3 {
+            flex-direction: column;
+            gap: 10px !important;
+        }
+        .search-box {
+            max-width: 180px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-1"><i class="bi bi-share-alt text-primary"></i> 共享知识库</h3>
+            <p class="text-muted small mb-0">浏览和添加其他用户分享的知识库资源</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 p-0">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" id="tab-added" href="#" onclick="switchTab('added')">
+                        <i class="bi bi-check-circle me-1"></i> 已添加
+                        <span class="badge bg-primary ms-1" id="addedBadge">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-available" href="#" onclick="switchTab('available')">
+                        <i class="bi bi-plus-circle me-1"></i> 可添加
+                        <span class="badge bg-secondary ms-1" id="availableBadge">0</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div id="tab-content-added">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <span class="text-muted small" id="addedCountText">加载中...</span>
+                    <div class="search-box" style="max-width:260px;">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="searchAdded" 
+                                   placeholder="搜索用户名/知识库..." onkeyup="debounceSearch('added')">
+                        </div>
+                    </div>
+                </div>
+                <div id="addedContainer">
+                    <div class="text-center py-5 text-muted">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <p class="mt-2 small">加载中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-content-available" style="display:none;">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <span class="text-muted small" id="availableCountText">加载中...</span>
+                    <div class="search-box" style="max-width:260px;">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="searchAvailable" 
+                                   placeholder="搜索用户名/知识库..." onkeyup="debounceSearch('available')">
+                        </div>
+                    </div>
+                </div>
+                <div id="availableContainer">
+                    <div class="text-center py-5 text-muted">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <p class="mt-2 small">加载中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="confirmTitle">确认操作</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmBody">确定要执行此操作吗？</div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmBtn" onclick="confirmAction()">确认</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentTab = 'added';
+let addedPage = 1;
+let availablePage = 1;
+let confirmCallback = null;
+let searchTimers = {};
+
+function formatFileSize(bytes) {
+    if (!bytes) return '0 B';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function formatTime(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getFileIcon(filename) {
+    const ext = (filename || '').split('.').pop().toLowerCase();
+    const icons = { txt: 'bi-file-text', md: 'bi-file-markdown', docx: 'bi-file-word', pdf: 'bi-file-pdf' };
+    return icons[ext] || 'bi-file-text';
+}
+
+function getUserInitial(name) {
+    return (name || '?').charAt(0).toUpperCase();
+}
+
+function debounceSearch(type) {
+    clearTimeout(searchTimers[type]);
+    searchTimers[type] = setTimeout(() => {
+        if (type === 'added') { addedPage = 1; loadAddedKnowledge(); }
+        else { availablePage = 1; loadAvailableKnowledge(); }
+    }, 400);
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-added').classList.toggle('active', tab === 'added');
+    document.getElementById('tab-available').classList.toggle('active', tab === 'available');
+    document.getElementById('tab-content-added').style.display = tab === 'added' ? '' : 'none';
+    document.getElementById('tab-content-available').style.display = tab === 'available' ? '' : 'none';
+    if (tab === 'added') loadAddedKnowledge();
+    else loadAvailableKnowledge();
+}
+
+async function loadAddedKnowledge() {
+    try {
+        const keyword = document.getElementById('searchAdded')?.value?.trim() || '';
+        const url = `/api/knowledge/shared/added?page=${addedPage}&page_size=20${keyword ? '&keyword=' + encodeURIComponent(keyword) : ''}`;
+        const resp = await api(url);
+        const data = await resp.json();
+        renderAddedKnowledge(data.data || [], data.total || 0, data.page || 1, data.page_size || 20);
+        document.getElementById('addedBadge').textContent = data.total || 0;
+    } catch (e) {
+        console.error('加载已添加知识库失败', e);
+        document.getElementById('addedContainer').innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>加载失败，请稍后重试</p></div>';
+    }
+}
+
+async function loadAvailableKnowledge() {
+    try {
+        const keyword = document.getElementById('searchAvailable')?.value?.trim() || '';
+        const url = `/api/knowledge/shared/addable?page=${availablePage}&page_size=20${keyword ? '&keyword=' + encodeURIComponent(keyword) : ''}`;
+        const resp = await api(url);
+        const data = await resp.json();
+        renderAvailableKnowledge(data.data || [], data.total || 0, data.page || 1, data.page_size || 20);
+        document.getElementById('availableBadge').textContent = data.total || 0;
+    } catch (e) {
+        console.error('加载可添加知识库失败', e);
+        document.getElementById('availableContainer').innerHTML = '<div class="empty-state"><i class="bi bi-exclamation-triangle"></i><p>加载失败，请稍后重试</p></div>';
+    }
+}
+
+function renderAddedKnowledge(files, total, page, pageSize) {
+    const container = document.getElementById('addedContainer');
+    document.getElementById('addedCountText').textContent = `已添加 ${total} 个共享知识库`;
+    if (!files || files.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="bi bi-inbox"></i><p>还没有添加任何共享知识库</p><small>切换到"可添加"标签页浏览和添加</small></div>';
+        return;
+    }
+    const html = files.map(f => {
+        const initial = getUserInitial(f.shared_username || '?');
+        return `
+        <div class="knowledge-card p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex gap-3 align-items-center flex-grow-1" style="min-width:0;">
+                    ${f.shared_avatar_url
+                        ? '<img src="' + f.shared_avatar_url + '" class="avatar-sm" alt="" data-initial="' + initial + '" onerror="handleAvatarError(this)">'
+                        : makeAvatarFallback(f.shared_username || '?')}
+                    <div style="min-width:0;">
+                        <h6 class="mb-1 text-truncate">
+                            <i class="bi ${getFileIcon(f.original_filename)} me-1"></i>${escapeHtml(f.name || f.original_filename)}
+                        </h6>
+                        <small class="text-muted d-flex flex-wrap gap-1">
+                            <span>${f.shared_username || '未知用户'}</span>
+                            <span class="mx-1">·</span>
+                            <span>${formatTime(f.added_at)}</span>
+                        </small>
+                    </div>
+                </div>
+                <button class="btn btn-outline-danger btn-action ms-2 flex-shrink-0" 
+                        onclick="showRemoveConfirm(${f.knowledge_file_id}, '${escapeHtml(f.name || f.original_filename)}')">
+                    <i class="bi bi-trash me-1"></i>移除
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+    container.innerHTML = html + renderPagination(total, page, pageSize, 'added');
+}
+
+function renderAvailableKnowledge(files, total, page, pageSize) {
+    const container = document.getElementById('availableContainer');
+    document.getElementById('availableCountText').textContent = `共有 ${total} 个可添加的共享知识库`;
+    if (!files || files.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="bi bi-cloud-off"></i><p>暂无可添加的共享知识库</p><small>其他用户共享知识库后会显示在这里</small></div>';
+        return;
+    }
+    const html = files.map(f => {
+        const initial = getUserInitial(f.username || '?');
+        return `
+        <div class="knowledge-card p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex gap-3 align-items-center flex-grow-1" style="min-width:0;">
+                    ${f.avatar_url
+                        ? '<img src="' + f.avatar_url + '" class="avatar-sm" alt="" data-initial="' + initial + '" onerror="handleAvatarError(this)">'
+                        : makeAvatarFallback(f.username || '?')}
+                    <div style="min-width:0;">
+                        <h6 class="mb-1 text-truncate">
+                            <i class="bi ${getFileIcon(f.original_filename)} me-1"></i>${escapeHtml(f.name || f.original_filename)}
+                        </h6>
+                        <small class="text-muted d-flex flex-wrap gap-1">
+                            <span>${f.username || '未知用户'}</span>
+                            <span class="mx-1">·</span>
+                            <span>${formatFileSize(f.file_size)}</span>
+                            <span class="mx-1">·</span>
+                            <span>${f.chunk_count || 0} 片段</span>
+                        </small>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-action ms-2 flex-shrink-0" 
+                        onclick="showAddConfirm(${f.id}, '${escapeHtml(f.name || f.original_filename)}')">
+                    <i class="bi bi-plus me-1"></i>添加
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+    container.innerHTML = html + renderPagination(total, page, pageSize, 'available');
+}
+
+function getUserInitial(name) {
+    if (!name) return '?';
+    const emailMatch = name.match(/^([^@]+)@/);
+    if (emailMatch) {
+        name = emailMatch[1];
+    }
+    return name.charAt(0).toUpperCase();
+}
+
+function makeAvatarFallback(name) {
+    const initial = getUserInitial(name);
+    return '<div class="avatar-fallback">' + initial + '</div>';
+}
+
+function handleAvatarError(img) {
+    const initial = img.getAttribute('data-initial') || '?';
+    const fallback = document.createElement('div');
+    fallback.className = 'avatar-fallback';
+    fallback.textContent = initial;
+    img.parentNode.replaceChild(fallback, img);
+}
+
+function renderPagination(total, page, pageSize, type) {
+    const totalPages = Math.ceil(total / pageSize);
+    if (totalPages <= 1) return '';
+    const currentPage = type === 'added' ? addedPage : availablePage;
+    let html = '<nav><ul class="pagination justify-content-center mt-3">';
+    const loadFn = type === 'added' ? 'loadAddedKnowledge()' : 'loadAvailableKnowledge()';
+    
+    if (currentPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="${type}Page=${currentPage - 1};${loadFn};return false;"><i class="bi bi-chevron-left"></i></a></li>`;
+    }
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            html += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else {
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="${type}Page=${i};${loadFn};return false;">${i}</a></li>`;
+        }
+    }
+    if (currentPage < totalPages) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="${type}Page=${currentPage + 1};${loadFn};return false;"><i class="bi bi-chevron-right"></i></a></li>`;
+    }
+    html += '</ul></nav>';
+    return html;
+}
+
+function showAddConfirm(fileId, fileName) {
+    document.getElementById('confirmTitle').textContent = '确认添加';
+    document.getElementById('confirmBody').textContent = `确定要添加 "${fileName}" 这个共享知识库吗？`;
+    document.getElementById('confirmBtn').className = 'btn btn-primary';
+    document.getElementById('confirmBtn').innerHTML = '<i class="bi bi-plus me-1"></i>确认添加';
+    confirmCallback = () => addKnowledge(fileId);
+    new bootstrap.Modal(document.getElementById('confirmModal')).show();
+}
+
+function showRemoveConfirm(fileId, fileName) {
+    document.getElementById('confirmTitle').textContent = '确认移除';
+    document.getElementById('confirmBody').textContent = `确定要移除 "${fileName}" 吗？移除后无法在对话中使用该知识库。`;
+    document.getElementById('confirmBtn').className = 'btn btn-danger';
+    document.getElementById('confirmBtn').innerHTML = '<i class="bi bi-trash me-1"></i>确认移除';
+    confirmCallback = () => removeKnowledge(fileId);
+    new bootstrap.Modal(document.getElementById('confirmModal')).show();
+}
+
+function confirmAction() {
+    if (confirmCallback) confirmCallback();
+    bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+}
+
+async function addKnowledge(knowledgeFileId) {
+    try {
+        const resp = await api(`/api/knowledge/shared/add/${knowledgeFileId}`, { method: 'POST' });
+        if (resp.ok) {
+            showToast('添加成功', 'success');
+            loadAddedKnowledge();
+            loadAvailableKnowledge();
+        } else {
+            const data = await resp.json();
+            showToast(data.detail || '添加失败', 'error');
+        }
+    } catch (e) {
+        showToast('添加失败', 'error');
+    }
+}
+
+async function removeKnowledge(knowledgeFileId) {
+    try {
+        const resp = await api(`/api/knowledge/shared/remove/${knowledgeFileId}`, { method: 'DELETE' });
+        if (resp.ok) {
+            showToast('移除成功', 'success');
+            loadAddedKnowledge();
+            loadAvailableKnowledge();
+        } else {
+            const data = await resp.json();
+            showToast(data.detail || '移除失败', 'error');
+        }
+    } catch (e) {
+        showToast('移除失败', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (getToken()) loadAddedKnowledge();
+});
+</script>
+{% endblock %}

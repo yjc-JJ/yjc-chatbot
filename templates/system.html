@@ -1,0 +1,578 @@
+{% extends "base.html" %}
+{% block title %}系统架构文档{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .doc-container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .hero-section {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+        padding: 60px 40px;
+        border-radius: 16px;
+        margin-bottom: 32px;
+        text-align: center;
+    }
+    .hero-section h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 16px; }
+    .hero-section p { font-size: 1.1rem; opacity: 0.9; max-width: 700px; margin: 0 auto; }
+    .tech-badges { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 24px; }
+    .tech-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        backdrop-filter: blur(4px);
+    }
+    .section-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        border: 1px solid #eef2f7;
+    }
+    .section-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #1a1a2e;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 3px solid #4f46e5;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .section-title i { color: #4f46e5; }
+    .diagram-box {
+        background: #fafbfc;
+        border: 1px solid #e8ecf1;
+        border-radius: 10px;
+        padding: 24px;
+        margin: 16px 0;
+        font-family: monospace;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        overflow-x: auto;
+    }
+    .flow-chart {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+    }
+    .flow-layer {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .flow-box {
+        background: #fff;
+        border: 2px solid #4f46e5;
+        border-radius: 8px;
+        padding: 12px 20px;
+        min-width: 100px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(79,70,229,0.15);
+    }
+    .flow-box.sub {
+        border-color: #93c5fd;
+        min-width: 80px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+    .flow-arrow {
+        color: #4f46e5;
+        font-size: 1.5rem;
+    }
+    .api-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+    .api-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+        border: 1px solid #e8ecf1;
+        border-radius: 10px;
+        padding: 16px;
+        transition: all 0.3s ease;
+    }
+    .api-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(79,70,229,0.15);
+    }
+    .api-card .method {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        margin-right: 6px;
+    }
+    .method-get { background: #dcfce7; color: #166534; }
+    .method-post { background: #dbeafe; color: #1e40af; }
+    .method-put { background: #fef3c7; color: #92400e; }
+    .method-delete { background: #fee2e2; color: #991b1b; }
+    .db-model {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+    }
+    .db-entity {
+        background: linear-gradient(135deg, #eef2ff 0%, #f8f9ff 100%);
+        border: 1px solid #c7d2fe;
+        border-radius: 10px;
+        padding: 14px;
+    }
+    .db-entity h4 {
+        color: #4338ca;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .db-entity ul { margin: 0; padding-left: 16px; font-size: 0.8rem; color: #6b7280; }
+    .flow-steps {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        margin: 20px 0;
+    }
+    @media (max-width: 900px) { .flow-steps { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) { .flow-steps { grid-template-columns: repeat(2, 1fr); } }
+    .flow-step {
+        position: relative;
+        background: #fff;
+        border: 2px solid #e8ecf1;
+        border-radius: 12px;
+        padding: 20px 12px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .flow-step:hover { border-color: #4f46e5; transform: translateY(-4px); }
+    .flow-step .step-num {
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+    }
+    .flow-step i { font-size: 1.6rem; color: #4f46e5; margin-bottom: 8px; }
+    .flow-step h5 { font-size: 0.9rem; color: #1a1a2e; margin-bottom: 4px; }
+    .flow-step p { font-size: 0.75rem; color: #6b7280; margin: 0; }
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+    @media (max-width: 900px) { .feature-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr; } }
+    .feature-card {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid #e8ecf1;
+        transition: all 0.3s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 28px rgba(79,70,229,0.12);
+    }
+    .feature-card .icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+        font-size: 1.3rem;
+    }
+    .feature-card h4 { font-size: 0.95rem; margin-bottom: 8px; }
+    .feature-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 0.8rem;
+        color: #6b7280;
+        text-align: left;
+    }
+    .feature-card li { padding: 3px 0; }
+    .feature-card li::before { content: "✓ "; color: #10b981; font-weight: bold; }
+    .icon-purple { background: linear-gradient(135deg, #4f46e522, #7c3aed22); color: #4f46e5; }
+    .icon-green { background: linear-gradient(135deg, #10b98122, #05966922); color: #10b981; }
+    .icon-orange { background: linear-gradient(135deg, #f59e0b22, #d9770622); color: #f59e0b; }
+    .icon-red { background: linear-gradient(135deg, #ef444422, #dc262622); color: #ef4444; }
+    .icon-blue { background: linear-gradient(135deg, #3b82f622, #2563eb22); color: #3b82f6; }
+    .icon-pink { background: linear-gradient(135deg, #ec489922, #db277722); color: #ec4899; }
+    .code-block {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 14px 16px;
+        border-radius: 8px;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 0.8rem;
+        overflow-x: auto;
+        margin: 12px 0;
+    }
+    .code-block .keyword { color: #569cd6; }
+    .code-block .string { color: #ce9178; }
+    .code-block .comment { color: #6a9955; }
+    .code-block .function { color: #dcdcaa; }
+    .info-box {
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        border-left: 4px solid #10b981;
+        border-radius: 0 8px 8px 0;
+        padding: 14px 16px;
+        margin: 16px 0;
+    }
+    .info-box.warning {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border-color: #f59e0b;
+    }
+    .info-box h5 { margin: 0 0 4px; color: #059669; font-size: 0.95rem; }
+    .info-box.warning h5 { color: #d97706; }
+    .info-box p { margin: 0; font-size: 0.85rem; color: #374151; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media (max-width: 768px) { .three-col { grid-template-columns: 1fr; } }
+    .relation-line {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #4f46e5;
+        font-weight: bold;
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #eef2ff 0%, #f8f9ff 100%);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid #c7d2fe;
+    }
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #4338ca;
+    }
+    .stat-card .stat-label {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="doc-container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1><i class="fas fa-robot me-3"></i>AI 智能助手系统</h1>
+        <p>基于 FastAPI 构建的高性能智能对话系统，集成大语言模型和检索增强生成（RAG）技术</p>
+        <div class="tech-badges">
+            <span class="tech-badge"><i class="fas fa-bolt me-1"></i> FastAPI</span>
+            <span class="tech-badge"><i class="fas fa-database me-1"></i> SQLite</span>
+            <span class="tech-badge"><i class="fas fa-brain me-1"></i> DeepSeek</span>
+            <span class="tech-badge"><i class="fas fa-vector-square me-1"></i> Chroma</span>
+            <span class="tech-badge"><i class="fas fa-shield-halved me-1"></i> JWT Auth</span>
+            <span class="tech-badge"><i class="fas fa-desktop me-1"></i> Bootstrap 5</span>
+        </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-diagram-project"></i> 系统架构</h2>
+        <div class="flow-chart">
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #dbeafe; border-color: #3b82f6;"><strong>表示层</strong></div>
+            </div>
+            <div class="flow-layer">
+                <div class="flow-box sub">Login Page</div>
+                <div class="flow-box sub">Chat Page</div>
+                <div class="flow-box sub">Knowledge Mgmt</div>
+                <div class="flow-box sub">Admin Page</div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #fef3c7; border-color: #f59e0b;"><strong>业务逻辑层</strong></div>
+            </div>
+            <div class="flow-layer">
+                <div class="flow-box sub">Auth API</div>
+                <div class="flow-box sub">Chat API</div>
+                <div class="flow-box sub">Knowledge API</div>
+                <div class="flow-box sub">Admin API</div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #d1fae5; border-color: #10b981;"><strong>RAG Service</strong></div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #e0e7ff; border-color: #6366f1;"><strong>数据访问层</strong></div>
+            </div>
+            <div class="flow-layer">
+                <div class="flow-box sub">SQLite (app.db)</div>
+                <div class="flow-box sub">Vector DB (Chroma)</div>
+                <div class="flow-box sub">Files (avatars/)</div>
+            </div>
+        </div>
+        <div class="diagram-box" style="margin-top: 24px;">
+<strong>路由模块:</strong> users | conversations | chat | knowledge | admin<br>
+<strong>服务模块:</strong> rag_service | vector_store | embedding | deepseek_client
+        </div>
+    </div>
+
+    <!-- Core Components -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-cubes"></i> 核心组件</h2>
+        <div class="three-col">
+            <div class="stat-card">
+                <div class="stat-value">5</div>
+                <div class="stat-label">核心路由模块</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">4</div>
+                <div class="stat-label">业务服务</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">6</div>
+                <div class="stat-label">数据模型</div>
+            </div>
+        </div>
+        <div class="flow-chart" style="margin-top: 24px;">
+            <div class="flow-layer">
+                <div class="flow-box">用户请求</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">认证验证</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">业务处理</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">数据访问</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #dcfce7;">返回响应</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Models -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-database"></i> 数据模型</h2>
+        <div class="flow-chart">
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #eef2ff; border-color: #818cf8;">User</div>
+            </div>
+            <div class="relation-line">||--o{ has many</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #fef3c7; border-color: #f59e0b;">Conversation</div>
+                <div class="flow-box" style="background: #dcfce7; border-color: #10b981;">KnowledgeBase</div>
+            </div>
+            <div class="relation-line">Conversation ||--o{ has many</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #fce7f3; border-color: #ec4899;">ChatMessage</div>
+            </div>
+            <div class="relation-line">KnowledgeBase → stored in →</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #e0e7ff; border-color: #6366f1;">Vector Store</div>
+            </div>
+        </div>
+        <div class="db-model">
+            <div class="db-entity"><h4><i class="fas fa-user"></i> User</h4><ul><li>id, email, password</li><li>username, avatar_url</li><li>role, is_active</li><li>created_at, updated_at</li></ul></div>
+            <div class="db-entity"><h4><i class="fas fa-comments"></i> Conversation</h4><ul><li>id, user_id, title</li><li>created_at, updated_at</li></ul></div>
+            <div class="db-entity"><h4><i class="fas fa-message"></i> ChatMessage</h4><ul><li>id, conversation_id</li><li>role, content</li><li>created_at</li></ul></div>
+            <div class="db-entity"><h4><i class="fas fa-file-lines"></i> KnowledgeBase</h4><ul><li>id, user_id</li><li>filename, file_path</li><li>chunk_count</li><li>is_shared</li></ul></div>
+            <div class="db-entity"><h4><i class="fas fa-vector-square"></i> VectorStore</h4><ul><li>id, user_id</li><li>content, embedding</li><li>metadata</li></ul></div>
+            <div class="db-entity"><h4><i class="fas fa-file-text"></i> OperationLog</h4><ul><li>id, user_id</li><li>action, target</li><li>created_at</li></ul></div>
+        </div>
+    </div>
+
+    <!-- API Endpoints -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-share-nodes"></i> API 端点</h2>
+        <div class="api-grid">
+            <div class="api-card"><h5><i class="fas fa-user-shield me-2"></i>认证模块</h5><span class="method method-post">POST</span>/api/auth/register<br><span class="method method-post">POST</span>/api/auth/login<br><span class="method method-get">GET</span>/api/users/me</div>
+            <div class="api-card"><h5><i class="fas fa-user me-2"></i>用户管理</h5><span class="method method-post">POST</span>/api/users/me/avatar<br><span class="method method-get">GET</span>/api/users/me/avatar<br><span class="method method-put">PUT</span>/api/users/me/username<br><span class="method method-put">PUT</span>/api/users/me/password</div>
+            <div class="api-card"><h5><i class="fas fa-comments me-2"></i>会话管理</h5><span class="method method-get">GET</span>/api/conversations<br><span class="method method-post">POST</span>/api/conversations<br><span class="method method-delete">DEL</span>/api/conversations/{id}</div>
+            <div class="api-card"><h5><i class="fas fa-paper-plane me-2"></i>聊天消息</h5><span class="method method-post">POST</span>/api/chat/messages<br><span class="method method-get">GET</span>/api/chat/messages/{conversation_id}</div>
+            <div class="api-card"><h5><i class="fas fa-book me-2"></i>知识库</h5><span class="method method-post">POST</span>/api/knowledge/upload<br><span class="method method-get">GET</span>/api/knowledge/list<br><span class="method method-delete">DEL</span>/api/knowledge/{id}</div>
+            <div class="api-card"><h5><i class="fas fa-shield-halved me-2"></i>管理员</h5><span class="method method-get">GET</span>/api/admin/users<br><span class="method method-put">PUT</span>/api/admin/users/{id}<br><span class="method method-get">GET</span>/api/admin/logs</div>
+        </div>
+    </div>
+
+    <!-- RAG Flow -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-magnifying-glass-chart"></i> RAG 检索流程</h2>
+        <div class="flow-chart">
+            <div class="flow-layer">
+                <div class="flow-box">User Query</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">Generate Embedding</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">Vector Similarity Search</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">Retrieve Top-K Chunks</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">Build RAG Prompt</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box">LLM Generation</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-layer">
+                <div class="flow-box" style="background: #dcfce7;">Response</div>
+            </div>
+        </div>
+        <div class="code-block">
+def rag_query(query: str) -> str:
+    # 1. 向量化
+    query_embedding = embedding.encode(query)
+    
+    # 2. 向量检索
+    results = vector_store.similarity_search(query_embedding, k=3)
+    
+    # 3. 构建上下文
+    context = "\n".join([doc.page_content for doc in results])
+    
+    # 4. 调用LLM
+    response = llm.generate(context + query)
+    return response
+        </div>
+    </div>
+
+    <!-- Features -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-star"></i> 核心功能</h2>
+        <div class="feature-grid">
+            <div class="feature-card"><div class="icon icon-purple"><i class="fas fa-user-check"></i></div><h4>用户认证</h4><ul><li>用户注册登录</li><li>JWT令牌管理</li><li>密码修改重置</li><li>头像上传管理</li></ul></div>
+            <div class="feature-card"><div class="icon icon-green"><i class="fas fa-comments"></i></div><h4>聊天对话</h4><ul><li>会话创建管理</li><li>消息收发</li><li>对话历史</li><li>RAG检索增强</li></ul></div>
+            <div class="feature-card"><div class="icon icon-orange"><i class="fas fa-book"></i></div><h4>知识库管理</h4><ul><li>文档上传解析</li><li>向量化存储</li><li>共享知识库</li><li>文件管理</li></ul></div>
+            <div class="feature-card"><div class="icon icon-blue"><i class="fas fa-shield-halved"></i></div><h4>系统管理</h4><ul><li>用户列表管理</li><li>系统配置</li><li>操作日志查看</li><li>角色权限控制</li></ul></div>
+            <div class="feature-card"><div class="icon icon-red"><i class="fas fa-lock"></i></div><h4>安全保障</h4><ul><li>JWT认证</li><li>bcrypt加密</li><li>RBAC权限</li><li>CSRF防护</li></ul></div>
+            <div class="feature-card"><div class="icon icon-pink"><i class="fas fa-cog"></i></div><h4>架构设计</h4><ul><li>FastAPI异步</li><li>SQLAlchemy ORM</li><li>模块化路由</li><li>配置化管理</li></ul></div>
+        </div>
+    </div>
+
+    <!-- Error Handling -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-exclamation-triangle"></i> 错误处理机制</h2>
+        <div class="two-col">
+            <div>
+                <h5 class="mb-3">HTTP状态码处理</h5>
+                <div class="code-block">
+HTTP 401 - 未授权（自动跳转登录）
+HTTP 403 - 权限不足（禁止访问）
+HTTP 400 - 参数错误（详细提示）
+HTTP 413 - 文件过大（2MB限制）
+HTTP 500 - 服务器错误（友好提示）
+HTTP 404 - 资源不存在
+                </div>
+            </div>
+            <div>
+                <h5 class="mb-3">安全校验</h5>
+                <div class="code-block">
+# 文件上传校验
+allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+max_size = 2 * 1024 * 1024  # 2MB
+
+# SQL注入防护
+query = db.query(User).filter(User.email == email)
+
+# XSS防护
+response = escape_html(content)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deployment -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-rocket"></i> 部署配置</h2>
+        <div class="two-col">
+            <div>
+                <h5 class="mb-3"><i class="fas fa-key me-2 text-warning"></i>环境变量</h5>
+                <div class="code-block">
+# 数据库配置
+DATABASE_URL=sqlite:///./app.db
+
+# JWT配置
+SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# DeepSeek API
+DEEPSEEK_API_KEY=your-api-key
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+
+# 上传配置
+MAX_FILE_SIZE=2097152
+ALLOWED_EXTENSIONS=jpg,jpeg,png,webp
+                </div>
+            </div>
+            <div>
+                <h5 class="mb-3"><i class="fas fa-terminal me-2 text-info"></i>启动命令</h5>
+                <div class="code-block">
+# 安装依赖
+pip install -r requirements.txt
+
+# 开发模式
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 生产模式
+uvicorn main:app --host 0.0.0.0 --port 8000
+                </div>
+            </div>
+        </div>
+        <div class="info-box warning mt-4"><h5><i class="fas fa-exclamation-triangle me-1"></i> 安全建议</h5><p>修改SECRET_KEY，使用HTTPS，定期更换管理员密码，添加限流控制</p></div>
+    </div>
+
+    <!-- Performance -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-gauge-high"></i> 性能优化</h2>
+        <div class="three-col">
+            <div class="stat-card">
+                <div class="stat-value">4</div>
+                <div class="stat-label">头像尺寸规格</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">2MB</div>
+                <div class="stat-label">文件上传限制</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">30min</div>
+                <div class="stat-label">令牌过期时间</div>
+            </div>
+        </div>
+        <div class="info-box mt-4"><h5><i class="fas fa-info-circle me-1"></i> 优化策略</h5><p>数据库索引优化、向量嵌入缓存、异步处理、静态资源缓存、旧文件自动清理</p></div>
+    </div>
+</div>
+{% endblock %}

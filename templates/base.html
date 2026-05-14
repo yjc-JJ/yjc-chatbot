@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}智能聊天机器人{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-width: 280px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f7fa;
+        }
+        .navbar {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        .nav-avatar-container {
+            position: relative;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea, #4f46e5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-avatar-img {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .nav-avatar-fallback {
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .card {
+            border-radius: 12px;
+            border: 1px solid #e8ecf1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+            border-color: #4338ca;
+        }
+        .form-control {
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+        }
+        .form-control:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 0.2rem rgba(79,70,229,0.15);
+        }
+        .alert {
+            border-radius: 10px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .nav-link.active {
+            color: #818cf8 !important;
+            font-weight: 600;
+        }
+        .dropdown-item i {
+            width: 20px;
+            text-align: center;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if not hide_nav %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/chat">
+                <i class="bi bi-robot"></i> 智能聊天机器人
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/chat"><i class="bi bi-chat-dots"></i> 对话</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/knowledge"><i class="bi bi-folder"></i> 知识库</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/shared-knowledge"><i class="bi bi-share-alt"></i> 共享知识库</a>
+                    </li>
+                    <li class="nav-item" id="admin-nav" style="display:none;">
+                        <a class="nav-link" href="/admin"><i class="bi bi-shield-lock"></i> 管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/system"><i class="bi bi-diagram-3"></i> 系统展示</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <div id="nav-avatar-container" class="nav-avatar-container">
+                                <img id="nav-avatar" src="" alt="用户头像" class="nav-avatar-img">
+                                <span id="nav-avatar-fallback" class="nav-avatar-fallback">?</span>
+                            </div>
+                            <span id="nav-username">用户</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="showUpdateUsernameModal()"><i class="bi bi-user"></i> 修改用户名</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showUploadAvatarModal()"><i class="bi bi-image"></i> 上传头像</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showChangePasswordModal()"><i class="bi bi-key"></i> 修改密码</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="toast-container" id="toast-container"></div>
+
+    {% block content %}{% endblock %}
+
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改密码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">原密码</label>
+                        <input type="password" class="form-control" id="oldPassword">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">新密码</label>
+                        <input type="password" class="form-control" id="newPassword">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="changePassword()">确认修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="updateUsernameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改用户名</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">新用户名</label>
+                        <input type="text" class="form-control" id="newUsername" placeholder="2-20个字符，支持中文、英文和数字">
+                        <div class="form-text text-muted">用户名只能包含中文、英文和数字，长度2-20个字符</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="updateUsername()">确认修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="uploadAvatarModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">上传头像</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="clearAvatarPreview()"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <div class="d-flex flex-column align-items-center">
+                            <div id="avatarPreviewContainer" class="relative mb-3" style="width: 150px; height: 150px; flex-shrink: 0;">
+                                <div id="avatarPlaceholder" class="absolute inset-0 rounded-circle bg-light" style="display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #dee2e6;">
+                                    <i class="bi bi-image text-gray-400" style="font-size: 2rem;"></i>
+                                    <span class="text-sm text-gray-500 mt-1">点击上传</span>
+                                </div>
+                                <img id="avatarPreview" src="#" alt="预览" class="absolute inset-0 rounded-circle" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                <button id="removePreviewBtn" type="button" class="position-absolute top-0 right-0 p-1 rounded-full bg-danger text-white opacity-0 hover:opacity-100 transition-opacity" style="display: none;" onclick="clearAvatarPreview()">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                            <input type="file" class="form-control" id="avatarFile" accept="image/jpeg,image/png,image/webp" style="display: none;">
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('avatarFile').click()">
+                                <i class="bi bi-upload me-1"></i>选择图片
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3 p-3 bg-info-subtle rounded-lg">
+                        <div class="form-text text-muted mb-1">支持格式：JPG、PNG、WEBP</div>
+                        <div class="form-text text-muted">文件大小不超过2MB</div>
+                    </div>
+                    <div id="avatarFileInfo" class="mb-3 p-2 bg-light rounded" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span id="avatarFileName" class="text-sm text-gray-700"></span>
+                            <span id="avatarFileSize" class="text-sm text-gray-500"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="clearAvatarPreview()">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="uploadAvatar()" id="uploadAvatarBtn">上传头像</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const TOKEN_KEY = 'rag_token';
+        const USER_KEY = 'rag_user';
+
+        function getToken() {
+            return localStorage.getItem(TOKEN_KEY);
+        }
+
+        function getUser() {
+            const u = localStorage.getItem(USER_KEY);
+            return u ? JSON.parse(u) : null;
+        }
+
+        function setAuth(token, user) {
+            localStorage.setItem(TOKEN_KEY, token);
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+        }
+
+        function clearAuth() {
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+        }
+
+        function logout() {
+            clearAuth();
+            window.location.href = '/login';
+        }
+
+        async function api(path, options = {}) {
+            const token = getToken();
+            const headers = {};
+            if (options.body && !(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+            }
+            if (options.headers) {
+                Object.assign(headers, options.headers);
+            }
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            const resp = await fetch(path, { ...options, headers });
+            if (resp.status === 401) {
+                clearAuth();
+                window.location.href = '/login';
+                throw new Error('未授权');
+            }
+            return resp;
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
+            const toastEl = document.createElement('div');
+            toastEl.className = `toast align-items-center text-white ${bgClass} border-0`;
+            toastEl.setAttribute('role', 'alert');
+            toastEl.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body"><i class="bi bi-${icon} me-2"></i>${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            container.appendChild(toastEl);
+            const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+            toast.show();
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        }
+
+        function showChangePasswordModal() {
+            const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+            modal.show();
+        }
+
+        async function changePassword() {
+            const oldPwd = document.getElementById('oldPassword').value;
+            const newPwd = document.getElementById('newPassword').value;
+            if (!oldPwd || !newPwd) {
+                showToast('请填写所有字段', 'error');
+                return;
+            }
+            if (newPwd.length < 4) {
+                showToast('新密码至少4个字符', 'error');
+                return;
+            }
+            try {
+                const resp = await api('/api/users/me/password', {
+                    method: 'PUT',
+                    body: JSON.stringify({ old_password: oldPwd, new_password: newPwd }),
+                });
+                if (resp.ok) {
+                    showToast('密码修改成功', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+                    document.getElementById('oldPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                } else {
+                    const data = await resp.json();
+                    showToast(data.detail || '修改失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', 'error');
+            }
+        }
+
+        function showUpdateUsernameModal() {
+            const modal = new bootstrap.Modal(document.getElementById('updateUsernameModal'));
+            modal.show();
+        }
+
+        async function updateUsername() {
+            const username = document.getElementById('newUsername').value;
+            if (!username) {
+                showToast('请输入用户名', 'error');
+                return;
+            }
+            if (username.length < 2 || username.length > 20) {
+                showToast('用户名长度必须在2-20个字符之间', 'error');
+                return;
+            }
+            try {
+                const resp = await api('/api/users/me/username', {
+                    method: 'PUT',
+                    body: JSON.stringify({ username: username }),
+                });
+                if (resp.ok) {
+                    showToast('用户名修改成功', 'success');
+                    const data = await resp.json();
+                    const user = getUser();
+                    user.username = data.username;
+                    localStorage.setItem(USER_KEY, JSON.stringify(user));
+                    updateUserDisplay();
+                    bootstrap.Modal.getInstance(document.getElementById('updateUsernameModal')).hide();
+                    document.getElementById('newUsername').value = '';
+                } else {
+                    const data = await resp.json();
+                    showToast(data.detail?.[0]?.msg || data.detail || '修改失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', 'error');
+            }
+        }
+
+        function showUploadAvatarModal() {
+            const modal = new bootstrap.Modal(document.getElementById('uploadAvatarModal'));
+            modal.show();
+            clearAvatarPreview();
+        }
+
+        function clearAvatarPreview() {
+            const preview = document.getElementById('avatarPreview');
+            const placeholder = document.getElementById('avatarPlaceholder');
+            const removeBtn = document.getElementById('removePreviewBtn');
+            const fileInfo = document.getElementById('avatarFileInfo');
+            const fileInput = document.getElementById('avatarFile');
+            
+            preview.style.display = 'none';
+            placeholder.style.display = 'flex';
+            removeBtn.style.display = 'none';
+            fileInfo.style.display = 'none';
+            
+            if (fileInput) {
+                fileInput.value = '';
+            }
+        }
+
+        document.getElementById('avatarFile')?.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('avatarPreview');
+                    const placeholder = document.getElementById('avatarPlaceholder');
+                    const removeBtn = document.getElementById('removePreviewBtn');
+                    const fileInfo = document.getElementById('avatarFileInfo');
+                    const fileName = document.getElementById('avatarFileName');
+                    const fileSize = document.getElementById('avatarFileSize');
+                    
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    removeBtn.style.display = 'block';
+                    removeBtn.style.opacity = '1';
+                    
+                    fileName.textContent = file.name;
+                    fileSize.textContent = formatFileSize(file.size);
+                    fileInfo.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        async function uploadAvatar() {
+            const fileInput = document.getElementById('avatarFile');
+            const file = fileInput.files[0];
+            const uploadBtn = document.getElementById('uploadAvatarBtn');
+            
+            if (!file) {
+                showToast('请选择头像图片', 'error');
+                return;
+            }
+            
+            const maxSize = 2 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showToast('图片大小不能超过2MB', 'error');
+                return;
+            }
+            
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showToast('不支持的图片格式，请上传JPG、PNG或WEBP格式', 'error');
+                return;
+            }
+            
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="bi bi-spinner-spin me-1"></i>上传中...';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const resp = await fetch('/api/users/me/avatar', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                    },
+                    body: formData,
+                });
+                
+                if (resp.ok) {
+                    showToast('头像上传成功', 'success');
+                    const data = await resp.json();
+                    const user = getUser();
+                    user.avatar_url = data.avatar_url;
+                    localStorage.setItem(USER_KEY, JSON.stringify(user));
+                    updateUserDisplay();
+                    bootstrap.Modal.getInstance(document.getElementById('uploadAvatarModal')).hide();
+                    clearAvatarPreview();
+                } else {
+                    const data = await resp.json();
+                    showToast(data.detail || '上传失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '上传头像';
+            }
+        }
+
+        function formatTime(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const now = new Date();
+            const diff = now - d;
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+            return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getUserInitial(name) {
+            if (!name) return '?';
+            const emailMatch = name.match(/^([^@]+)@/);
+            if (emailMatch) {
+                name = emailMatch[1];
+            }
+            return name.charAt(0).toUpperCase();
+        }
+
+        function updateUserDisplay() {
+            const user = getUser();
+            const navUsername = document.getElementById('nav-username');
+            const adminNav = document.getElementById('admin-nav');
+            const navAvatar = document.getElementById('nav-avatar');
+            const navAvatarFallback = document.getElementById('nav-avatar-fallback');
+            
+            if (user && navUsername) {
+                navUsername.textContent = user.username || user.email.split('@')[0];
+            }
+            
+            if (navAvatarFallback) {
+                navAvatarFallback.textContent = user ? getUserInitial(user.username || user.email) : '?';
+            }
+            
+            if (navAvatar && user?.avatar_url) {
+                navAvatar.src = user.avatar_url;
+                navAvatar.onerror = function() {
+                    this.style.display = 'none';
+                    if (navAvatarFallback) navAvatarFallback.style.display = 'flex';
+                };
+            } else if (navAvatar) {
+                navAvatar.style.display = 'none';
+                if (navAvatarFallback) navAvatarFallback.style.display = 'flex';
+            }
+            
+            if (user && user.is_admin && adminNav) {
+                adminNav.style.display = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUserDisplay();
+            if (!getToken() && window.location.pathname !== '/login' && window.location.pathname !== '/register' && window.location.pathname !== '/') {
+                window.location.href = '/login';
+            }
+        });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

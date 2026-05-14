@@ -1,0 +1,775 @@
+{% extends "base.html" %}
+{% block title %}对话 - 智能聊天机器人{% endblock %}
+
+{% block extra_head %}
+<style>
+    .chat-container {
+        display: flex;
+        height: calc(100vh - 56px);
+        overflow: hidden;
+    }
+    .sidebar {
+        width: var(--sidebar-width);
+        min-width: var(--sidebar-width);
+        background: #fff;
+        border-right: 1px solid #e8ecf1;
+        display: flex;
+        flex-direction: column;
+    }
+    .sidebar-header {
+        padding: 16px;
+        border-bottom: 1px solid #e8ecf1;
+    }
+    .sidebar-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+    }
+    .conv-item {
+        padding: 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-bottom: 4px;
+        transition: background 0.15s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .conv-item:hover {
+        background: #f0f2f5;
+    }
+    .conv-item.active {
+        background: #eef2ff;
+    }
+    .conv-item .title {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.9rem;
+    }
+    .conv-item .delete-btn {
+        opacity: 0;
+        transition: opacity 0.15s;
+        color: #999;
+        cursor: pointer;
+        padding: 2px 6px;
+        border: none;
+        background: none;
+    }
+    .conv-item:hover .delete-btn {
+        opacity: 1;
+    }
+    .conv-item .delete-btn:hover {
+        color: #e53e3e;
+    }
+    .main-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+    }
+    .chat-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid #e8ecf1;
+        background: #fafbfc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .chat-header .title {
+        font-weight: 600;
+    }
+    .rag-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+    .rag-toggle .form-switch {
+        margin: 0;
+    }
+    .messages-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        background: #f9fafb;
+    }
+    .no-session-overlay {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb;
+        color: #9ca3af;
+    }
+    .no-session-overlay.show {
+        display: flex;
+    }
+    .messages-area.hidden {
+        display: none;
+    }
+    .message {
+        display: flex;
+        gap: 12px;
+        max-width: 85%;
+        animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .message.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+    .message.assistant {
+        align-self: flex-start;
+    }
+    .message .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .message.user .avatar {
+        background: #4f46e5;
+        color: #fff;
+    }
+    .message.assistant .avatar {
+        background: #10b981;
+        color: #fff;
+    }
+    .message .avatar .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .message .avatar .avatar-initial {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    .message .bubble {
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        word-break: break-word;
+    }
+    .message.user .bubble {
+        background: #4f46e5;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+    .message.assistant .bubble {
+        background: #fff;
+        border: 1px solid #e8ecf1;
+        border-bottom-left-radius: 4px;
+    }
+    .message .meta {
+        font-size: 0.75rem;
+        color: #999;
+        margin-top: 4px;
+        padding: 0 4px;
+    }
+    .chat-input-area {
+        padding: 16px 20px;
+        border-top: 1px solid #e8ecf1;
+        background: #fff;
+    }
+    .chat-input-area.disabled {
+        display: none;
+    }
+    .chat-input-area .input-group {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .chat-input-area textarea {
+        resize: none;
+        border: 1px solid #d1d5db;
+        border-right: none;
+        font-size: 0.95rem;
+    }
+    .chat-input-area textarea:focus {
+        box-shadow: none;
+        border-color: #4f46e5;
+    }
+    .voice-btn {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-left: none;
+        border-right: none;
+        color: #6b7280;
+        transition: all 0.2s;
+        position: relative;
+    }
+    .voice-btn:hover {
+        color: #4f46e5;
+    }
+    .voice-btn.recording {
+        color: #ef4444;
+        background: #fef2f2;
+        border-color: #ef4444;
+    }
+    .voice-btn .stop-icon {
+        display: none;
+        width: 12px;
+        height: 12px;
+        background: #ef4444;
+        border-radius: 2px;
+    }
+    .voice-btn.recording .mic-icon {
+        display: none;
+    }
+    .voice-btn.recording .stop-icon {
+        display: block;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    .send-btn {
+        border-radius: 0 12px 12px 0 !important;
+    }
+    .typing-indicator {
+        display: flex;
+        gap: 4px;
+        padding: 8px 0;
+    }
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #d1d5db;
+        animation: typing 1.4s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-10px); }
+    }
+    .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+    }
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="sidebar">
+        <div class="sidebar-header" id="sidebarHeader">
+            <button class="btn btn-primary w-100" onclick="showCreateDialog()">
+                <i class="bi bi-plus-lg"></i> 新建对话
+            </button>
+        </div>
+        <div class="sidebar-header" id="createDialog" style="display:none;">
+            <input type="text" id="newConversationTitle" class="form-control mb-2" 
+                   placeholder="输入会话标题" maxlength="50" autofocus>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary flex-1" onclick="createConversation()">
+                    <i class="bi bi-check"></i> 创建
+                </button>
+                <button class="btn btn-outline-secondary flex-1" onclick="hideCreateDialog()">
+                    <i class="bi bi-x"></i> 取消
+                </button>
+            </div>
+        </div>
+        <div class="sidebar-list" id="conversationList">
+            <div class="text-center text-muted py-4">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <p class="mt-2 small">加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-chat">
+        <div class="chat-header" id="chatHeader" style="display:none;">
+            <span class="title" id="chatTitle"></span>
+            <div class="rag-toggle">
+                <i class="bi bi-brain"></i>
+                <span>知识库检索</span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="ragToggle" checked>
+                </div>
+            </div>
+        </div>
+        <div class="no-session-overlay show" id="noSessionOverlay">
+            <i class="bi bi-chat-square-text"></i>
+            <h5>请选择或新建一个对话</h5>
+            <p class="text-muted">在左侧选择会话或点击"新建对话"开始</p>
+        </div>
+        <div class="messages-area hidden" id="messagesArea">
+        </div>
+        <div class="chat-input-area disabled" id="chatInputArea">
+            <div class="input-group">
+                <textarea class="form-control" id="messageInput" rows="2"
+                    placeholder="输入您的问题... (Enter 发送, Shift+Enter 换行)"
+                    onkeydown="handleInputKey(event)"></textarea>
+                <button class="btn btn-outline-secondary voice-btn" id="voiceBtn"
+                    onclick="toggleVoice()" title="点击开始录音，再次点击结束">
+                    <i class="bi bi-mic mic-icon"></i>
+                    <span class="stop-icon"></span>
+                </button>
+                <button class="btn btn-primary send-btn" id="sendBtn"
+                    onclick="sendMessage()">
+                    <i class="bi bi-send"></i>
+                </button>
+            </div>
+            <div class="text-muted small mt-1 ps-2" id="voiceStatus"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentConversationId = null;
+let isStreaming = false;
+let recognition = null;
+let isRecording = false;
+let ragEnabled = true;
+let currentUser = null;
+
+async function loadConversations() {
+    try {
+        const resp = await api('/api/conversations');
+        const conversations = await resp.json();
+        renderConversationList(conversations);
+    } catch (e) {
+        console.error('加载会话列表失败', e);
+    }
+}
+
+function renderConversationList(conversations) {
+    const container = document.getElementById('conversationList');
+    if (conversations.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4"><p class="small">暂无会话</p></div>';
+        return;
+    }
+    container.innerHTML = conversations.map(c => `
+        <div class="conv-item ${c.id === currentConversationId ? 'active' : ''}"
+             onclick="selectConversation(${c.id})">
+            <span class="title" title="${escapeHtml(c.title)}">
+                <i class="bi bi-chat-text me-2"></i>${escapeHtml(c.title)}
+            </span>
+            <button class="delete-btn" onclick="event.stopPropagation(); deleteConversation(${c.id})"
+                title="删除会话">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function showCreateDialog() {
+    document.getElementById('sidebarHeader').style.display = 'none';
+    document.getElementById('createDialog').style.display = 'block';
+    setTimeout(() => {
+        document.getElementById('newConversationTitle').focus();
+    }, 100);
+}
+
+function hideCreateDialog() {
+    document.getElementById('createDialog').style.display = 'none';
+    document.getElementById('sidebarHeader').style.display = 'block';
+    document.getElementById('newConversationTitle').value = '';
+}
+
+async function createConversation() {
+    const titleInput = document.getElementById('newConversationTitle');
+    const title = titleInput.value.trim() || '新对话';
+    
+    try {
+        const resp = await api('/api/conversations', {
+            method: 'POST',
+            body: JSON.stringify({ title: title }),
+        });
+        const conv = await resp.json();
+        hideCreateDialog();
+        await loadConversations();
+        selectConversation(conv.id);
+    } catch (e) {
+        console.error('创建会话失败', e);
+        showToast('创建失败', 'error');
+    }
+}
+
+async function selectConversation(id) {
+    currentConversationId = id;
+    ragEnabled = document.getElementById('ragToggle').checked;
+
+    document.getElementById('chatHeader').style.display = 'flex';
+    document.getElementById('noSessionOverlay').classList.remove('show');
+    document.getElementById('messagesArea').classList.remove('hidden');
+    document.getElementById('chatInputArea').classList.remove('disabled');
+
+    const resp = await api(`/api/conversations/${id}`);
+    const conv = await resp.json();
+    document.getElementById('chatTitle').textContent = conv.title;
+
+    await loadMessages();
+    await loadConversations();
+}
+
+function hideChatUI() {
+    currentConversationId = null;
+    document.getElementById('chatHeader').style.display = 'none';
+    document.getElementById('noSessionOverlay').classList.add('show');
+    document.getElementById('messagesArea').classList.add('hidden');
+    document.getElementById('chatInputArea').classList.add('disabled');
+    document.getElementById('messagesArea').innerHTML = '';
+}
+
+async function deleteConversation(id) {
+    if (!confirm('确定删除此会话？所有消息将被清除。')) return;
+    try {
+        await api(`/api/conversations/${id}`, { method: 'DELETE' });
+        if (currentConversationId === id) {
+            hideChatUI();
+        }
+        await loadConversations();
+        showToast('会话已删除', 'success');
+    } catch (e) {
+        console.error('删除会话失败', e);
+        showToast('删除失败', 'error');
+    }
+}
+
+async function loadMessages() {
+    if (!currentConversationId) return;
+    try {
+        const resp = await api(`/api/conversations/${currentConversationId}/messages`);
+        const messages = await resp.json();
+        renderMessages(messages);
+    } catch (e) {
+        console.error('加载消息失败', e);
+    }
+}
+
+function renderMessages(messages) {
+    const area = document.getElementById('messagesArea');
+    if (messages.length === 0) {
+        area.innerHTML = '<div class="empty-state"><i class="bi bi-chat-dots"></i><p>发送第一条消息开始对话</p></div>';
+        return;
+    }
+    const userAvatar = currentUser?.avatar_url || '';
+    const initial = currentUser ? getUserInitial(currentUser.username || currentUser.email) : '?';
+    area.innerHTML = messages.map(m => `
+        <div class="message ${m.role}">
+            <div class="avatar">
+                ${m.role === 'user' && userAvatar ? 
+                    `<img src="${userAvatar}" alt="用户头像" class="avatar-img" data-initial="${initial}" onerror="handleAvatarError(this)">` : 
+                    `<span class="avatar-initial">${m.role === 'user' ? initial : 'R'}</span>`
+                }
+            </div>
+            <div>
+                <div class="bubble">${formatMessageContent(m.content)}</div>
+                <div class="meta">${formatTime(m.created_at)}</div>
+            </div>
+        </div>
+    `).join('');
+    scrollToBottom();
+}
+
+function getUserInitial(name) {
+    if (!name) return '?';
+    const emailMatch = name.match(/^([^@]+)@/);
+    if (emailMatch) {
+        name = emailMatch[1];
+    }
+    return name.charAt(0).toUpperCase();
+}
+
+function formatMessageContent(content) {
+    return content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>')
+        .replace(/\[片段\d+\]/g, '')
+        .replace(/【片段\d+】/g, '')
+        .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre class="bg-light p-2 rounded"><code>$2</code></pre>')
+        .replace(/`([^`]+)`/g, '<code class="bg-light px-1 rounded">$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+function scrollToBottom() {
+    const area = document.getElementById('messagesArea');
+    setTimeout(() => { area.scrollTop = area.scrollHeight; }, 50);
+}
+
+function handleAvatarError(img) {
+    const initial = img.getAttribute('data-initial') || '?';
+    const parent = img.parentElement;
+    parent.innerHTML = `<span class="avatar-initial">${initial}</span>`;
+}
+
+function handleInputKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+async function sendMessage() {
+    if (!currentConversationId || isStreaming) return;
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    ragEnabled = document.getElementById('ragToggle').checked;
+    input.disabled = true;
+    document.getElementById('sendBtn').disabled = true;
+    isStreaming = true;
+
+    appendUserMessage(message);
+    input.value = '';
+    input.style.height = 'auto';
+
+    const typingEl = appendTypingIndicator();
+
+    try {
+        const token = getToken();
+        const resp = await fetch(`/api/chat/${currentConversationId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ message, use_rag: ragEnabled }),
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.detail || '请求失败');
+        }
+
+        removeTypingIndicator();
+        const assistantBubble = appendAssistantBubble();
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.token) {
+                            appendTokenToBubble(assistantBubble, data.token);
+                        } else if (data.done) {
+                            updateAssistantTime(assistantBubble);
+                        } else if (data.error) {
+                            appendTokenToBubble(assistantBubble, '\n\n[错误: ' + data.error + ']');
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+
+        await loadMessages();
+    } catch (e) {
+        removeTypingIndicator();
+        showToast('发送失败: ' + e.message, 'error');
+    } finally {
+        isStreaming = false;
+        input.disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        input.focus();
+    }
+}
+
+function appendUserMessage(content) {
+    const area = document.getElementById('messagesArea');
+    const emptyEl = area.querySelector('.empty-state');
+    if (emptyEl) emptyEl.remove();
+
+    const div = document.createElement('div');
+    div.className = 'message user';
+    const userAvatar = currentUser?.avatar_url || '';
+    const initial = currentUser ? getUserInitial(currentUser.username || currentUser.email) : '?';
+    div.innerHTML = `
+        <div class="avatar">
+            ${userAvatar ? 
+                `<img src="${userAvatar}" alt="用户头像" class="avatar-img" data-initial="${initial}" onerror="handleAvatarError(this)">` : 
+                `<span class="avatar-initial">${initial}</span>`
+            }
+        </div>
+        <div>
+            <div class="bubble">${escapeHtml(content)}</div>
+            <div class="meta">刚刚</div>
+        </div>
+    `;
+    area.appendChild(div);
+    scrollToBottom();
+}
+
+function appendTypingIndicator() {
+    const area = document.getElementById('messagesArea');
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.id = 'typingMsg';
+    div.innerHTML = `
+        <div class="avatar"><i class="bi bi-robot"></i></div>
+        <div class="bubble">
+            <div class="typing-indicator">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+    `;
+    area.appendChild(div);
+    scrollToBottom();
+    return div;
+}
+
+function removeTypingIndicator() {
+    const el = document.getElementById('typingMsg');
+    if (el) el.remove();
+}
+
+function appendAssistantBubble() {
+    const area = document.getElementById('messagesArea');
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.id = 'streamingMsg';
+    div.innerHTML = `
+        <div class="avatar"><i class="bi bi-robot"></i></div>
+        <div>
+            <div class="bubble"></div>
+            <div class="meta">生成中...</div>
+        </div>
+    `;
+    area.appendChild(div);
+    scrollToBottom();
+    return div;
+}
+
+function appendTokenToBubble(bubbleEl, token) {
+    const bubble = bubbleEl.querySelector('.bubble');
+    bubble.innerHTML += formatMessageContent(token);
+    scrollToBottom();
+}
+
+function updateAssistantTime(bubbleEl) {
+    const meta = bubbleEl.querySelector('.meta');
+    if (meta) {
+        meta.textContent = '刚刚';
+    }
+    bubbleEl.removeAttribute('id');
+}
+
+function toggleVoice() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        showToast('您的浏览器不支持语音识别', 'error');
+        return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (isRecording) {
+        stopRecording();
+        if (recognition) {
+            recognition.stop();
+        }
+        return;
+    }
+
+    if (!recognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            document.getElementById('messageInput').value = transcript;
+        };
+
+        recognition.onerror = (event) => {
+            console.error('语音识别错误:', event.error);
+            if (event.error !== 'no-speech') {
+                document.getElementById('voiceStatus').textContent = '识别错误: ' + event.error;
+            }
+            stopRecording();
+        };
+
+        recognition.onend = () => {
+            if (isRecording) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    stopRecording();
+                }
+            }
+        };
+    }
+
+    try {
+        recognition.start();
+        isRecording = true;
+        document.getElementById('voiceBtn').classList.add('recording');
+        document.getElementById('voiceStatus').textContent = '正在聆听... 点击麦克风按钮结束录音';
+        document.getElementById('messageInput').disabled = false;
+    } catch (e) {
+        console.error('语音识别启动失败:', e);
+        stopRecording();
+    }
+}
+
+function stopRecording() {
+    isRecording = false;
+    document.getElementById('voiceBtn').classList.remove('recording');
+    document.getElementById('voiceStatus').textContent = '';
+}
+
+document.getElementById('ragToggle').addEventListener('change', function() {
+    ragEnabled = this.checked;
+});
+
+async function loadCurrentUser() {
+    try {
+        const resp = await api('/api/users/me');
+        currentUser = await resp.json();
+    } catch (e) {
+        console.error('加载用户信息失败', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (getToken()) {
+        loadCurrentUser();
+        loadConversations();
+    }
+});
+</script>
+{% endblock %}

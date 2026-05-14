@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+{% block title %}知识库管理 - 智能聊天机器人{% endblock %}
+
+{% block extra_head %}
+<style>
+    .file-card {
+        transition: all 0.2s;
+    }
+    .file-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .chunk-preview {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 8px;
+        font-size: 0.85rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .chunk-item {
+        padding: 8px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .chunk-item:last-child {
+        border-bottom: none;
+    }
+    .chunk-index {
+        font-weight: 600;
+        color: #4f46e5;
+        margin-right: 8px;
+    }
+    .upload-progress {
+        display: none;
+        margin-top: 16px;
+    }
+    .upload-progress.show {
+        display: block;
+    }
+    .progress-bar-animated {
+        animation: progress-stripe 1s linear infinite;
+        background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+        background-size: 1rem 1rem;
+    }
+    @keyframes progress-stripe {
+        from { background-position: 1rem 0; }
+        to { background-position: 0 0; }
+    }
+    .edit-name-input {
+        width: 200px;
+        font-size: 0.875rem;
+    }
+    .share-badge {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-folder2-open"></i> 知识库管理</h3>
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+            <i class="bi bi-cloud-upload"></i> 上传文件
+        </button>
+        <input type="file" id="fileInput" accept=".txt,.md,.docx,.pdf" style="display:none" onchange="uploadFile(event)">
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-muted">
+                <i class="bi bi-info-circle"></i> 支持上传 <strong>.txt</strong>、<strong>.md</strong>、<strong>.docx</strong>、<strong>.pdf</strong> 格式的文本文件。
+                系统将自动分段（每段约500字，重叠50字），调用嵌入模型生成向量并存储到您的知识库中。
+                在对话时，系统将自动从知识库中检索相关内容辅助回答。
+            </h6>
+        </div>
+    </div>
+
+    <div class="upload-progress" id="uploadProgress">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span id="uploadStatus">正在上传和处理文件...</span>
+                    <span id="uploadPercent">0%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                         id="progressBar" style="width: 0%"></div>
+                </div>
+                <small class="text-muted mt-2" id="uploadDetail">准备中...</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col">
+            <h5>文件列表</h5>
+        </div>
+        <div class="col-auto" id="adminToggleCol" style="display:none;">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="allFilesToggle" onchange="loadFiles()">
+                <label class="form-check-label" for="allFilesToggle">查看所有用户文件</label>
+            </div>
+        </div>
+    </div>
+
+    <div id="filesContainer">
+        <div class="text-center py-5 text-muted">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2">加载中...</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="chunkModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">文件分块详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="chunkModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2">加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="renameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">修改知识库名称</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">知识库名称</label>
+                    <input type="text" class="form-control" id="renameInput" placeholder="请输入知识库名称">
+                    <small class="text-muted mt-1 d-block">支持中文、英文、数字和空格，长度2-50个字符</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitRename()">确认修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentUploadId = null;
+let renameFileId = null;
+
+async function loadFiles() {
+    const user = getUser();
+    if (user && user.is_admin) {
+        document.getElementById('adminToggleCol').style.display = '';
+    }
+
+    const showAll = document.getElementById('allFilesToggle')?.checked || false;
+    const url = showAll ? '/api/knowledge/files?all=true' : '/api/knowledge/files';
+
+    try {
+        const resp = await api(url);
+        const files = await resp.json();
+        renderFiles(files);
+    } catch (e) {
+        console.error('加载文件列表失败', e);
+    }
+}
+
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const icons = {
+        'txt': 'bi-file-text',
+        'md': 'bi-file-markdown',
+        'docx': 'bi-file-word',
+        'pdf': 'bi-file-pdf'
+    };
+    return icons[ext] || 'bi-file-text';
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function renderFiles(files) {
+    const container = document.getElementById('filesContainer');
+    if (files.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox" style="font-size:3rem;"></i>
+                <p class="mt-2">还没有上传任何文件</p>
+            </div>`;
+        return;
+    }
+    container.innerHTML = files.map(f => `
+        <div class="card mb-2 file-card">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="bi ${getFileIcon(f.original_filename)} me-2"></i>
+                            <span id="name-${f.id}">${escapeHtml(f.name || f.original_filename)}</span>
+                            <span class="text-muted ms-2">用户ID: ${f.user_id}</span>
+                            ${f.is_shared ? '<span class="badge bg-success share-badge">已共享</span>' : ''}
+                        </h6>
+                        <small class="text-muted">
+                            <i class="bi bi-layers me-1"></i>分段数: ${f.chunk_count} |
+                            <i class="bi bi-hdd me-1"></i>大小: ${formatFileSize(f.file_size)} |
+                            <i class="bi bi-clock me-1"></i>上传时间: ${formatTime(f.created_at)}
+                        </small>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" onclick="showRenameModal(${f.id}, '${escapeHtml(f.name || f.original_filename)}')" title="重命名">
+                            <i class="bi bi-pencil"></i> 重命名
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="viewChunks(${f.id})" title="查看分块">
+                            <i class="bi bi-layers"></i> 分块
+                        </button>
+                        <button class="btn ${f.is_shared ? 'btn-outline-warning' : 'btn-outline-success'}" 
+                                onclick="toggleShare(${f.id}, ${!f.is_shared})" title="${f.is_shared ? '取消共享' : '共享'}">
+                            <i class="bi ${f.is_shared ? 'bi-unlock' : 'bi-lock'}"></i> ${f.is_shared ? '取消共享' : '共享'}
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteFile(${f.id})" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function uploadFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    const allowed = ['.txt', '.md', '.docx', '.pdf'];
+    if (!allowed.includes(ext)) {
+        showToast('仅支持 .txt、.md、.docx、.pdf 文件', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const statusText = document.getElementById('uploadStatus');
+    const percentText = document.getElementById('uploadPercent');
+    const detailText = document.getElementById('uploadDetail');
+
+    let progressTimer = null;
+    let currentProgress = 5;
+    const phases = [
+        { to: 15, status: '正在上传文件...', detail: '正在传输文件到服务器' },
+        { to: 30, status: '正在解析文件...', detail: '正在提取文本内容...' },
+        { to: 50, status: '正在处理文件...', detail: '正在将文本分段...' },
+        { to: 75, status: '正在向量化...', detail: '正在调用嵌入模型生成向量...' },
+        { to: 85, status: '正在存储...', detail: '正在写入向量数据库...' },
+    ];
+    let phaseIndex = 0;
+
+    function setProgress(percent, status, detail) {
+        currentProgress = percent;
+        progressBar.style.width = percent + '%';
+        percentText.textContent = percent + '%';
+        statusText.textContent = status;
+        detailText.textContent = detail;
+        progressBar.classList.add('progress-bar-animated');
+    }
+
+    progressDiv.classList.add('show');
+    setProgress(5, '正在准备上传...', `文件名: ${file.name}`);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    progressTimer = setInterval(() => {
+        if (phaseIndex < phases.length && currentProgress >= phases[phaseIndex].to) {
+            phaseIndex++;
+        }
+        if (phaseIndex < phases.length) {
+            const phase = phases[phaseIndex];
+            if (currentProgress < phase.to) {
+                currentProgress = Math.min(currentProgress + 2, phase.to);
+                setProgress(currentProgress, phase.status, phase.detail);
+            }
+        } else if (currentProgress < 88) {
+            currentProgress = Math.min(currentProgress + 0.5, 88);
+            setProgress(currentProgress, '正在处理中...', '请耐心等待，处理较大文件可能需要一些时间');
+        }
+    }, 300);
+
+    try {
+        const token = getToken();
+        const resp = await fetch('/api/knowledge/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+        });
+
+        clearInterval(progressTimer);
+
+        if (resp.ok) {
+            const data = await resp.json();
+            progressBar.classList.remove('progress-bar-animated');
+            setProgress(100, '上传成功！', `文件已分为 ${data.chunk_count} 个片段，总字符数: ${data.total_chars}`);
+
+            showToast(`上传成功！文件已分为 ${data.chunk_count} 个片段`, 'success');
+
+            setTimeout(() => {
+                progressDiv.classList.remove('show');
+                loadFiles();
+            }, 2000);
+        } else {
+            let errMsg = '上传失败';
+            try {
+                const errData = await resp.json();
+                errMsg = errData.detail || errMsg;
+            } catch (jsonErr) {
+                const text = await resp.text();
+                errMsg = text || `服务器错误 (${resp.status})`;
+            }
+            progressDiv.classList.remove('show');
+            showToast(errMsg, 'error');
+        }
+    } catch (e) {
+        clearInterval(progressTimer);
+        progressDiv.classList.remove('show');
+        showToast('上传失败: 网络错误或处理超时', 'error');
+    }
+    event.target.value = '';
+}
+
+function showRenameModal(fileId, currentName) {
+    renameFileId = fileId;
+    document.getElementById('renameInput').value = currentName;
+    const modal = new bootstrap.Modal(document.getElementById('renameModal'));
+    modal.show();
+}
+
+async function submitRename() {
+    const newName = document.getElementById('renameInput').value.trim();
+    if (!newName) {
+        showToast('请输入知识库名称', 'error');
+        return;
+    }
+    if (newName.length < 2 || newName.length > 50) {
+        showToast('知识库名称长度必须在2-50个字符之间', 'error');
+        return;
+    }
+
+    try {
+        const resp = await api(`/api/knowledge/files/${renameFileId}/name`, {
+            method: 'PUT',
+            body: JSON.stringify({ name: newName }),
+        });
+        if (resp.ok) {
+            showToast('名称修改成功', 'success');
+            document.getElementById(`name-${renameFileId}`).textContent = newName;
+            bootstrap.Modal.getInstance(document.getElementById('renameModal')).hide();
+        } else {
+            const data = await resp.json();
+            showToast(data.detail || '修改失败', 'error');
+        }
+    } catch (e) {
+        showToast('修改失败', 'error');
+    }
+}
+
+async function toggleShare(fileId, isShared) {
+    try {
+        const resp = await api(`/api/knowledge/files/${fileId}/share?is_shared=${isShared}`, {
+            method: 'PUT',
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            showToast(data.is_shared ? '共享成功' : '取消共享成功', 'success');
+            loadFiles();
+        } else {
+            const data = await resp.json();
+            showToast(data.detail || '操作失败', 'error');
+        }
+    } catch (e) {
+        showToast('操作失败', 'error');
+    }
+}
+
+async function viewChunks(fileId) {
+    const modal = new bootstrap.Modal(document.getElementById('chunkModal'));
+    const body = document.getElementById('chunkModalBody');
+    body.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2">正在加载分块信息...</p>
+        </div>`;
+    modal.show();
+
+    try {
+        const resp = await api(`/api/knowledge/files/${fileId}/chunks`);
+        const data = await resp.json();
+
+        if (data.chunks && data.chunks.length > 0) {
+            body.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 共 ${data.total} 个分块
+                </div>
+                <div class="chunk-preview">
+                    ${data.chunks.map(chunk => `
+                        <div class="chunk-item">
+                            <span class="chunk-index">#${chunk.index + 1}</span>
+                            <span class="chunk-content">${escapeHtml(chunk.content)}</span>
+                        </div>
+                    `).join('')}
+                </div>`;
+        } else {
+            body.innerHTML = '<div class="alert alert-warning">暂无分块信息</div>';
+        }
+    } catch (e) {
+        body.innerHTML = '<div class="alert alert-danger">加载失败: ' + e.message + '</div>';
+    }
+}
+
+async function deleteFile(id) {
+    if (!confirm('确定删除此文件？对应的向量数据也将被清除。')) return;
+    try {
+        const resp = await api(`/api/knowledge/files/${id}`, { method: 'DELETE' });
+        if (resp.ok) {
+            showToast('文件已删除', 'success');
+            loadFiles();
+        } else {
+            const data = await resp.json();
+            showToast(data.detail || '删除失败', 'error');
+        }
+    } catch (e) {
+        showToast('删除失败', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (getToken()) loadFiles();
+});
+</script>
+{% endblock %}
