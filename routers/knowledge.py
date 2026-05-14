@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api/knowledge", tags=["knowledge"])
 logger = logging.getLogger("knowledge")
 
 ALLOWED_EXTENSIONS = {".txt", ".md", ".docx", ".pdf"}
+MAX_FILE_SIZE = 300 * 1024 * 1024  # 300MB
 
 
 def extract_text_from_txt(content_bytes: bytes) -> str:
@@ -108,6 +109,12 @@ async def upload_file(
 
     if file_size == 0:
         raise HTTPException(status_code=400, detail="文件内容为空")
+
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"文件大小超过限制(最大300MB)，当前文件大小: {file_size / (1024*1024):.2f}MB",
+        )
 
     try:
         content = extract_text(file, content_bytes)

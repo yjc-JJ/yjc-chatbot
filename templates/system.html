@@ -1,8 +1,12 @@
 {% extends "base.html" %}
-{% block title %}系统架构文档{% endblock %}
+{% block title %}AI智能助手系统架构文档{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({ startOnLoad: true });
+</script>
 <style>
     .doc-container { max-width: 1400px; margin: 0 auto; padding: 24px; }
     .hero-section {
@@ -43,22 +47,47 @@
         gap: 12px;
     }
     .section-title i { color: #4f46e5; }
+    .subsection-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #374151;
+        margin: 20px 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
     .diagram-box {
         background: #fafbfc;
         border: 1px solid #e8ecf1;
         border-radius: 10px;
         padding: 24px;
         margin: 16px 0;
-        font-family: monospace;
-        font-size: 0.85rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.8rem;
         line-height: 1.6;
         overflow-x: auto;
+        white-space: pre;
     }
+    .code-block {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 18px 20px;
+        border-radius: 10px;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 0.8rem;
+        overflow-x: auto;
+        margin: 12px 0;
+        white-space: pre;
+    }
+    .code-block .keyword { color: #569cd6; }
+    .code-block .string { color: #ce9178; }
+    .code-block .comment { color: #6a9955; }
+    .code-block .function { color: #dcdcaa; }
     .flow-chart {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: 12px;
     }
     .flow-layer {
         display: flex;
@@ -134,43 +163,6 @@
         gap: 6px;
     }
     .db-entity ul { margin: 0; padding-left: 16px; font-size: 0.8rem; color: #6b7280; }
-    .flow-steps {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 12px;
-        margin: 20px 0;
-    }
-    @media (max-width: 900px) { .flow-steps { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 600px) { .flow-steps { grid-template-columns: repeat(2, 1fr); } }
-    .flow-step {
-        position: relative;
-        background: #fff;
-        border: 2px solid #e8ecf1;
-        border-radius: 12px;
-        padding: 20px 12px;
-        text-align: center;
-        transition: all 0.3s ease;
-    }
-    .flow-step:hover { border-color: #4f46e5; transform: translateY(-4px); }
-    .flow-step .step-num {
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        color: white;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 0.75rem;
-    }
-    .flow-step i { font-size: 1.6rem; color: #4f46e5; margin-bottom: 8px; }
-    .flow-step h5 { font-size: 0.9rem; color: #1a1a2e; margin-bottom: 4px; }
-    .flow-step p { font-size: 0.75rem; color: #6b7280; margin: 0; }
     .feature-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -217,20 +209,6 @@
     .icon-red { background: linear-gradient(135deg, #ef444422, #dc262622); color: #ef4444; }
     .icon-blue { background: linear-gradient(135deg, #3b82f622, #2563eb22); color: #3b82f6; }
     .icon-pink { background: linear-gradient(135deg, #ec489922, #db277722); color: #ec4899; }
-    .code-block {
-        background: #1e1e1e;
-        color: #d4d4d4;
-        padding: 14px 16px;
-        border-radius: 8px;
-        font-family: 'Fira Code', 'Consolas', monospace;
-        font-size: 0.8rem;
-        overflow-x: auto;
-        margin: 12px 0;
-    }
-    .code-block .keyword { color: #569cd6; }
-    .code-block .string { color: #ce9178; }
-    .code-block .comment { color: #6a9955; }
-    .code-block .function { color: #dcdcaa; }
     .info-box {
         background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
         border-left: 4px solid #10b981;
@@ -242,21 +220,18 @@
         background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
         border-color: #f59e0b;
     }
+    .info-box.danger {
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border-color: #ef4444;
+    }
     .info-box h5 { margin: 0 0 4px; color: #059669; font-size: 0.95rem; }
     .info-box.warning h5 { color: #d97706; }
+    .info-box.danger h5 { color: #dc2626; }
     .info-box p { margin: 0; font-size: 0.85rem; color: #374151; }
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     @media (max-width: 768px) { .three-col { grid-template-columns: 1fr; } }
-    .relation-line {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        color: #4f46e5;
-        font-weight: bold;
-    }
     .stat-card {
         background: linear-gradient(135deg, #eef2ff 0%, #f8f9ff 100%);
         border-radius: 12px;
@@ -273,6 +248,47 @@
         font-size: 0.85rem;
         color: #6b7280;
         margin-top: 4px;
+    }
+    .component-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 0.85rem;
+    }
+    .component-table th, .component-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e8ecf1;
+        text-align: left;
+    }
+    .component-table th {
+        background: #f8f9ff;
+        font-weight: 600;
+        color: #4338ca;
+    }
+    .component-table tr:hover { background: #fafbfc; }
+    .error-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 0.85rem;
+    }
+    .error-table th, .error-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e8ecf1;
+        text-align: left;
+    }
+    .error-table th {
+        background: #fef3c7;
+        font-weight: 600;
+        color: #92400e;
+    }
+    .mermaid-container {
+        background: #fff;
+        border: 1px solid #e8ecf1;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 16px 0;
+        overflow-x: auto;
     }
 </style>
 {% endblock %}
@@ -293,109 +309,428 @@
         </div>
     </div>
 
-    <!-- Architecture -->
+    <!-- 1. 系统架构 -->
     <div class="section-card">
         <h2 class="section-title"><i class="fas fa-diagram-project"></i> 系统架构</h2>
-        <div class="flow-chart">
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #dbeafe; border-color: #3b82f6;"><strong>表示层</strong></div>
-            </div>
-            <div class="flow-layer">
-                <div class="flow-box sub">Login Page</div>
-                <div class="flow-box sub">Chat Page</div>
-                <div class="flow-box sub">Knowledge Mgmt</div>
-                <div class="flow-box sub">Admin Page</div>
-            </div>
-            <div class="flow-arrow">↓</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #fef3c7; border-color: #f59e0b;"><strong>业务逻辑层</strong></div>
-            </div>
-            <div class="flow-layer">
-                <div class="flow-box sub">Auth API</div>
-                <div class="flow-box sub">Chat API</div>
-                <div class="flow-box sub">Knowledge API</div>
-                <div class="flow-box sub">Admin API</div>
-            </div>
-            <div class="flow-arrow">↓</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #d1fae5; border-color: #10b981;"><strong>RAG Service</strong></div>
-            </div>
-            <div class="flow-arrow">↓</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #e0e7ff; border-color: #6366f1;"><strong>数据访问层</strong></div>
-            </div>
-            <div class="flow-layer">
-                <div class="flow-box sub">SQLite (app.db)</div>
-                <div class="flow-box sub">Vector DB (Chroma)</div>
-                <div class="flow-box sub">Files (avatars/)</div>
-            </div>
-        </div>
-        <div class="diagram-box" style="margin-top: 24px;">
-<strong>路由模块:</strong> users | conversations | chat | knowledge | admin<br>
-<strong>服务模块:</strong> rag_service | vector_store | embedding | deepseek_client
-        </div>
-    </div>
+        
+        <h3 class="subsection-title"><i class="fas fa-info-circle"></i> 整体架构概述</h3>
+        <p class="text-muted">本项目是一个基于 FastAPI 构建的 AI 智能助手系统，采用典型的三层架构设计：表示层、业务逻辑层和数据访问层。系统集成了大语言模型（LLM）和检索增强生成（RAG）技术，为用户提供智能对话服务。</p>
 
-    <!-- Core Components -->
-    <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-cubes"></i> 核心组件</h2>
+        <h3 class="subsection-title"><i class="fas fa-layer-group"></i> 架构层次图</h3>
+        <div class="mermaid-container">
+            <pre class="mermaid">
+flowchart TB
+    subgraph PresentationLayer["📱 表示层 (Presentation Layer)"]
+        Login["🔐 Login Page<br/>注册页"]
+        Chat["💬 Chat Page<br/>聊天页"]
+        Knowledge["📚 Knowledge Mgmt<br/>知识管理"]
+        Admin["⚙️ Admin Page<br/>管理页"]
+    end
+
+    subgraph ApplicationLayer["⚙️ 业务逻辑层 (Application Layer)"]
+        AuthAPI["🔑 Auth API<br/>认证接口"]
+        UsersAPI["👤 Users API<br/>用户接口"]
+        ChatAPI["💬 Chat API<br/>聊天接口"]
+        ConversationAPI["📋 Conversation API<br/>会话接口"]
+        KnowledgeAPI["📤 Knowledge API<br/>知识接口"]
+        VectorStore["🔍 Vector Store<br/>向量存储"]
+        AdminAPI["🛡️ Admin API<br/>管理接口"]
+        RAGService["🤖 RAG Service<br/>(LLM + Embedding)"]
+    end
+
+    subgraph DataLayer["💾 数据访问层 (Data Layer)"]
+        SQLite["🗄️ SQLite<br/>(app.db)"]
+        Chroma["📊 Vector DB<br/>(Chroma)"]
+        Files["📁 Files<br/>(avatars/)"]
+        Logs["📝 Logs<br/>(logs/)"]
+    end
+
+    Login --> AuthAPI
+    Chat --> ChatAPI
+    Chat --> ConversationAPI
+    Knowledge --> KnowledgeAPI
+    Admin --> AdminAPI
+
+    AuthAPI --> UsersAPI
+    ChatAPI --> RAGService
+    KnowledgeAPI --> VectorStore
+    VectorStore --> RAGService
+    RAGService --> Chroma
+
+    UsersAPI --> ApplicationLayer
+    ConversationAPI --> ApplicationLayer
+
+    ApplicationLayer --> SQLite
+    ApplicationLayer --> Chroma
+    ApplicationLayer --> Files
+    ApplicationLayer --> Logs
+
+    style PresentationLayer fill:#eef2ff,stroke:#6366f1,stroke-width:2px
+    style ApplicationLayer fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+    style DataLayer fill:#d1fae5,stroke:#10b981,stroke-width:2px
+    style RAGService fill:#fce7f3,stroke:#ec4899,stroke-width:3px
+            </pre>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-cubes"></i> 核心组件交互关系</h3>
+        <table class="component-table">
+            <thead>
+                <tr><th>组件</th><th>职责</th><th>关键文件</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>认证模块</strong></td><td>用户注册、登录、JWT令牌管理</td><td><code>auth.py</code>, <code>routers/users.py</code></td></tr>
+                <tr><td><strong>聊天模块</strong></td><td>对话管理、消息收发、上下文维护</td><td><code>routers/chat.py</code>, <code>routers/conversations.py</code></td></tr>
+                <tr><td><strong>RAG服务</strong></td><td>文档检索、向量嵌入、LLM调用</td><td><code>services/rag_service.py</code>, <code>services/embedding.py</code></td></tr>
+                <tr><td><strong>知识管理</strong></td><td>文档上传、解析、向量化存储</td><td><code>routers/knowledge.py</code>, <code>services/vector_store.py</code></td></tr>
+                <tr><td><strong>管理员模块</strong></td><td>用户管理、系统配置、日志查看</td><td><code>routers/admin.py</code></td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="subsection-title"><i class="fas fa-tools"></i> 技术栈</h3>
+        <table class="component-table">
+            <thead>
+                <tr><th>分类</th><th>技术</th><th>版本/说明</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>框架</strong></td><td>FastAPI</td><td>现代 Python Web 框架</td></tr>
+                <tr><td><strong>服务器</strong></td><td>Uvicorn</td><td>ASGI 服务器</td></tr>
+                <tr><td><strong>数据库</strong></td><td>SQLite</td><td>轻量级关系型数据库</td></tr>
+                <tr><td><strong>ORM</strong></td><td>SQLAlchemy</td><td>数据库对象映射</td></tr>
+                <tr><td><strong>认证</strong></td><td>JWT (PyJWT)</td><td>无状态身份认证</td></tr>
+                <tr><td><strong>前端</strong></td><td>Bootstrap 5</td><td>响应式 UI 框架</td></tr>
+                <tr><td><strong>LLM</strong></td><td>DeepSeek API</td><td>大语言模型服务</td></tr>
+                <tr><td><strong>向量数据库</strong></td><td>Chroma</td><td>轻量级向量存储</td></tr>
+                <tr><td><strong>嵌入模型</strong></td><td>sentence-transformers</td><td>文本向量化</td></tr>
+                <tr><td><strong>图片处理</strong></td><td>Pillow</td><td>头像压缩处理</td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="subsection-title"><i class="fas fa-palette"></i> 前端技术栈</h3>
         <div class="three-col">
-            <div class="stat-card">
-                <div class="stat-value">5</div>
-                <div class="stat-label">核心路由模块</div>
+            <div class="feature-card">
+                <div class="icon icon-purple"><i class="fas fa-layer-group"></i></div>
+                <h4>核心框架</h4>
+                <ul>
+                    <li>Bootstrap 5.3.0 - 响应式UI框架</li>
+                    <li>原生 JavaScript (ES6+)</li>
+                    <li>Jinja2 模板引擎</li>
+                </ul>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">4</div>
-                <div class="stat-label">业务服务</div>
+            <div class="feature-card">
+                <div class="icon icon-blue"><i class="fas fa-plug"></i></div>
+                <h4>UI组件库</h4>
+                <ul>
+                    <li>Bootstrap Icons 1.11.0</li>
+                    <li>Font Awesome 6.4.0</li>
+                    <li>Bootstrap Modal & Toast</li>
+                </ul>
             </div>
-            <div class="stat-card">
-                <div class="stat-value">6</div>
-                <div class="stat-label">数据模型</div>
+            <div class="feature-card">
+                <div class="icon icon-green"><i class="fas fa-chart-line"></i></div>
+                <h4>性能优化</h4>
+                <ul>
+                    <li>异步文件上传 (Fetch API)</li>
+                    <li>图片懒加载优化</li>
+                    <li>本地存储缓存策略</li>
+                </ul>
             </div>
         </div>
-        <div class="flow-chart" style="margin-top: 24px;">
-            <div class="flow-layer">
-                <div class="flow-box">用户请求</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">认证验证</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">业务处理</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">数据访问</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #dcfce7;">返回响应</div>
-            </div>
+
+        <h3 class="subsection-title"><i class="fas fa-code"></i> 前端开发工具</h3>
+        <table class="component-table">
+            <thead>
+                <tr><th>工具</th><th>用途</th><th>说明</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>Chrome DevTools</strong></td><td>调试工具</td><td>浏览器开发者工具用于调试和性能分析</td></tr>
+                <tr><td><strong>Fetch API</strong></td><td>网络请求</td><td>原生 AJAX 实现前后端通信</td></tr>
+                <tr><td><strong>LocalStorage</strong></td><td>客户端存储</td><td>存储用户Token和信息</td></tr>
+                <tr><td><strong>CSS变量</strong></td><td>主题管理</td><td>统一的颜色和样式变量</td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="subsection-title"><i class="fas fa-exchange-alt"></i> 数据流程图</h3>
+        
+        <div class="mb-4"><strong>用户认证流程：</strong></div>
+        <div class="flow-chart">
+            <div class="flow-layer"><div class="flow-box">用户</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">登录/注册</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">JWT令牌</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">请求API</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">令牌验证</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">业务处理</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box" style="background: #dcfce7;">返回响应</div></div>
+        </div>
+
+        <div class="mb-4 mt-6"><strong>聊天对话流程：</strong></div>
+        <div class="flow-chart">
+            <div class="flow-layer"><div class="flow-box">用户消息</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">Chat API</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">RAG检索</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">DeepSeek LLM</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">生成响应</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">存储对话</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box" style="background: #dcfce7;">返回结果</div></div>
+        </div>
+
+        <div class="mb-4 mt-6"><strong>知识上传流程：</strong></div>
+        <div class="flow-chart">
+            <div class="flow-layer"><div class="flow-box">文档上传</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">格式验证</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">内容提取</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">向量化</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box">向量存储</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-layer"><div class="flow-box" style="background: #dcfce7;">记录元数据</div></div>
         </div>
     </div>
 
-    <!-- Database Models -->
+    <!-- 2. 功能组件 -->
     <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-database"></i> 数据模型</h2>
-        <div class="flow-chart">
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #eef2ff; border-color: #818cf8;">User</div>
+        <h2 class="section-title"><i class="fas fa-star"></i> 功能组件</h2>
+        
+        <h3 class="subsection-title"><i class="fas fa-list-check"></i> 功能总览</h3>
+        <table class="component-table">
+            <thead>
+                <tr><th>功能模块</th><th>子功能</th><th>状态</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>用户认证</strong></td><td>注册、登录、密码重置</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>用户管理</strong></td><td>个人信息、头像上传、角色管理</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>聊天对话</strong></td><td>创建会话、发送消息、历史记录</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>RAG知识库</strong></td><td>文档上传、知识检索、向量管理</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>系统管理</strong></td><td>用户管理、配置管理、日志查看</td><td><span class="text-success">✅ 已实现</span></td></tr>
+            </tbody>
+        </table>
+
+        <h3 class="subsection-title"><i class="fas fa-user-check"></i> 用户认证模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>用户注册：邮箱、密码、用户名创建账户</li>
+                    <li>用户登录：邮箱密码验证，返回JWT令牌</li>
+                    <li>令牌刷新：自动续期机制</li>
+                    <li>密码管理：支持密码重置（预留接口）</li>
+                </ul>
             </div>
-            <div class="relation-line">||--o{ has many</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #fef3c7; border-color: #f59e0b;">Conversation</div>
-                <div class="flow-box" style="background: #dcfce7; border-color: #10b981;">KnowledgeBase</div>
+            <div>
+                <strong>用户流程：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+访问登录页 → 输入凭证 → 验证成功 → 获取令牌 → 跳转首页
+                </div>
             </div>
-            <div class="relation-line">Conversation ||--o{ has many</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #fce7f3; border-color: #ec4899;">ChatMessage</div>
+        </div>
+        <div class="code-block">
+async def authenticate_user(db: Session, email: str, password: str):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not verify_password(password, user.hashed_password):
+        return False
+    return user
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-user-circle"></i> 用户管理模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>个人信息查看/编辑</li>
+                    <li>头像上传（支持JPG/PNG/WEBP，2MB限制）</li>
+                    <li>多尺寸头像生成（original/large/medium/small）</li>
+                    <li>旧头像文件自动清理</li>
+                </ul>
             </div>
-            <div class="relation-line">KnowledgeBase → stored in →</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #e0e7ff; border-color: #6366f1;">Vector Store</div>
+            <div>
+                <strong>支持的头像尺寸：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+sizes = {
+    "original": None,
+    "large": (200, 200),
+    "medium": (100, 100),
+    "small": (50, 50)
+}
+                </div>
             </div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-comments"></i> 聊天对话模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>创建/删除对话会话</li>
+                    <li>发送消息并获取AI响应</li>
+                    <li>查看对话历史</li>
+                    <li>会话列表管理</li>
+                </ul>
+            </div>
+            <div>
+                <strong>对话数据模型：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+# Conversation: 会话实体
+# ChatMessage: 消息实体（关联会话和用户）
+# 消息类型：user(用户消息), assistant(AI响应), system(系统消息)
+                </div>
+            </div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-magnifying-glass-chart"></i> RAG检索流程</h3>
+        <div class="code-block">
+# 1. 用户提问向量化
+query_embedding = embedding.encode(query)
+
+# 2. 向量数据库检索
+results = vector_store.similarity_search(query_embedding, k=3)
+
+# 3. 构建prompt上下文
+context = "\n".join([doc.page_content for doc in results])
+
+# 4. 调用LLM生成响应
+response = deepseek_client.generate(context + query)
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-book-open"></i> 知识库管理模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>文档上传（支持TXT/PDF等格式）</li>
+                    <li>文档解析和内容提取</li>
+                    <li>向量嵌入和存储</li>
+                    <li>知识库列表管理</li>
+                    <li>共享知识库功能</li>
+                </ul>
+            </div>
+            <div>
+                <strong>支持的文档格式：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>纯文本文件 (.txt)</li>
+                    <li>PDF文档 (.pdf) - 需安装PyPDF2</li>
+                    <li>Markdown文件 (.md)</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-shield-halved"></i> 管理员模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>用户列表管理（查看、禁用、角色变更）</li>
+                    <li>系统配置管理</li>
+                    <li>操作日志查看</li>
+                    <li>知识库统计</li>
+                </ul>
+            </div>
+            <div>
+                <strong>管理员权限控制：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+async def get_current_admin(current_user: User = Depends(get_current_active_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="无管理员权限")
+    return current_user
+                </div>
+            </div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-exclamation-triangle"></i> 错误处理机制</h3>
+        <table class="error-table">
+            <thead>
+                <tr><th>错误类型</th><th>HTTP状态码</th><th>处理策略</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>认证失败</strong></td><td>401</td><td>返回未授权，前端跳转登录</td></tr>
+                <tr><td><strong>权限不足</strong></td><td>403</td><td>返回禁止访问提示</td></tr>
+                <tr><td><strong>参数错误</strong></td><td>400</td><td>详细错误信息</td></tr>
+                <tr><td><strong>文件过大</strong></td><td>413</td><td>限制300MB（知识库文件），2MB（头像）</td></tr>
+                <tr><td><strong>服务器错误</strong></td><td>500</td><td>记录日志，返回友好提示</td></tr>
+                <tr><td><strong>资源不存在</strong></td><td>404</td><td>明确提示资源位置</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. 数据库E-R图 -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-database"></i> 数据库实体关系图</h2>
+        <div class="mermaid-container">
+            <pre class="mermaid">
+erDiagram
+    USER ||--o{ CONVERSATION : creates
+    USER ||--o{ KNOWLEDGE_BASE : owns
+    USER ||--o{ OPERATION_LOG : performs
+    CONVERSATION ||--o{ CHAT_MESSAGE : contains
+    KNOWLEDGE_BASE ||--o{ VECTOR_STORE : stores_in
+    
+    USER {
+        int id PK "用户ID"
+        string email UK "邮箱"
+        string hashed_password "加密密码"
+        string username "用户名"
+        string avatar_url "头像URL"
+        string role "角色: user/admin"
+        boolean is_active "是否活跃"
+        datetime created_at "创建时间"
+        datetime updated_at "更新时间"
+    }
+    
+    CONVERSATION {
+        int id PK "会话ID"
+        int user_id FK "用户ID"
+        string title "会话标题"
+        datetime created_at "创建时间"
+        datetime updated_at "更新时间"
+    }
+    
+    CHAT_MESSAGE {
+        int id PK "消息ID"
+        int conversation_id FK "会话ID"
+        string role "角色: user/assistant/system"
+        string content "消息内容"
+        datetime created_at "创建时间"
+    }
+    
+    KNOWLEDGE_BASE {
+        int id PK "知识库ID"
+        int user_id FK "用户ID"
+        string filename "文件名"
+        string file_path "文件路径"
+        int chunk_count "分块数量"
+        boolean is_shared "是否共享"
+        datetime created_at "创建时间"
+    }
+    
+    VECTOR_STORE {
+        int id PK "向量ID"
+        int user_id FK "用户ID"
+        string content "文本内容"
+        blob embedding "向量嵌入"
+        json metadata "元数据"
+    }
+    
+    OPERATION_LOG {
+        int id PK "日志ID"
+        int user_id FK "用户ID"
+        string action "操作类型"
+        string target "操作目标"
+        datetime created_at "操作时间"
+    }
+            </pre>
         </div>
         <div class="db-model">
             <div class="db-entity"><h4><i class="fas fa-user"></i> User</h4><ul><li>id, email, password</li><li>username, avatar_url</li><li>role, is_active</li><li>created_at, updated_at</li></ul></div>
@@ -407,120 +742,112 @@
         </div>
     </div>
 
-    <!-- API Endpoints -->
+    <!-- 4. API接口汇总 -->
     <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-share-nodes"></i> API 端点</h2>
+        <h2 class="section-title"><i class="fas fa-share-nodes"></i> API 接口汇总</h2>
         <div class="api-grid">
-            <div class="api-card"><h5><i class="fas fa-user-shield me-2"></i>认证模块</h5><span class="method method-post">POST</span>/api/auth/register<br><span class="method method-post">POST</span>/api/auth/login<br><span class="method method-get">GET</span>/api/users/me</div>
-            <div class="api-card"><h5><i class="fas fa-user me-2"></i>用户管理</h5><span class="method method-post">POST</span>/api/users/me/avatar<br><span class="method method-get">GET</span>/api/users/me/avatar<br><span class="method method-put">PUT</span>/api/users/me/username<br><span class="method method-put">PUT</span>/api/users/me/password</div>
-            <div class="api-card"><h5><i class="fas fa-comments me-2"></i>会话管理</h5><span class="method method-get">GET</span>/api/conversations<br><span class="method method-post">POST</span>/api/conversations<br><span class="method method-delete">DEL</span>/api/conversations/{id}</div>
-            <div class="api-card"><h5><i class="fas fa-paper-plane me-2"></i>聊天消息</h5><span class="method method-post">POST</span>/api/chat/messages<br><span class="method method-get">GET</span>/api/chat/messages/{conversation_id}</div>
-            <div class="api-card"><h5><i class="fas fa-book me-2"></i>知识库</h5><span class="method method-post">POST</span>/api/knowledge/upload<br><span class="method method-get">GET</span>/api/knowledge/list<br><span class="method method-delete">DEL</span>/api/knowledge/{id}</div>
-            <div class="api-card"><h5><i class="fas fa-shield-halved me-2"></i>管理员</h5><span class="method method-get">GET</span>/api/admin/users<br><span class="method method-put">PUT</span>/api/admin/users/{id}<br><span class="method method-get">GET</span>/api/admin/logs</div>
+            <div class="api-card">
+                <h5><i class="fas fa-user-shield me-2"></i>认证模块</h5>
+                <span class="method method-post">POST</span>/api/auth/register<br>
+                <span class="method method-post">POST</span>/api/auth/login
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-user me-2"></i>用户管理</h5>
+                <span class="method method-get">GET</span>/api/users/me<br>
+                <span class="method method-post">POST</span>/api/users/me/avatar<br>
+                <span class="method method-get">GET</span>/api/users/me/avatar
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-comments me-2"></i>会话管理</h5>
+                <span class="method method-get">GET</span>/api/conversations<br>
+                <span class="method method-post">POST</span>/api/conversations<br>
+                <span class="method method-delete">DEL</span>/api/conversations/{id}
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-paper-plane me-2"></i>聊天消息</h5>
+                <span class="method method-post">POST</span>/api/chat/messages<br>
+                <span class="method method-get">GET</span>/api/chat/messages/{conversation_id}
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-book me-2"></i>知识库</h5>
+                <span class="method method-post">POST</span>/api/knowledge/upload<br>
+                <span class="method method-get">GET</span>/api/knowledge/list<br>
+                <span class="method method-delete">DEL</span>/api/knowledge/{id}
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-shield-halved me-2"></i>管理员</h5>
+                <span class="method method-get">GET</span>/api/admin/users<br>
+                <span class="method method-put">PUT</span>/api/admin/users/{id}<br>
+                <span class="method method-get">GET</span>/api/admin/logs
+            </div>
         </div>
     </div>
 
-    <!-- RAG Flow -->
+    <!-- 5. 关键模块职责 -->
     <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-magnifying-glass-chart"></i> RAG 检索流程</h2>
-        <div class="flow-chart">
-            <div class="flow-layer">
-                <div class="flow-box">User Query</div>
+        <h2 class="section-title"><i class="fas fa-folder-open"></i> 关键模块职责</h2>
+        <div class="two-col">
+            <div>
+                <h5><i class="fas fa-play-circle me-2 text-purple"></i> main.py - 应用入口</h5>
+                <ul class="text-muted" style="font-size: 0.85rem;">
+                    <li>FastAPI应用实例创建</li>
+                    <li>路由注册</li>
+                    <li>中间件配置（CORS、静态文件）</li>
+                    <li>数据库连接初始化</li>
+                </ul>
             </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">Generate Embedding</div>
+            <div>
+                <h5><i class="fas fa-database me-2 text-blue"></i> database.py - 数据库配置</h5>
+                <ul class="text-muted" style="font-size: 0.85rem;">
+                    <li>SQLAlchemy引擎创建</li>
+                    <li>数据库会话管理</li>
+                    <li>依赖注入函数</li>
+                </ul>
             </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">Vector Similarity Search</div>
+            <div>
+                <h5><i class="fas fa-table me-2 text-green"></i> models.py - 数据模型</h5>
+                <ul class="text-muted" style="font-size: 0.85rem;">
+                    <li>User: 用户实体</li>
+                    <li>Conversation: 会话实体</li>
+                    <li>ChatMessage: 消息实体</li>
+                    <li>KnowledgeBase: 知识库实体</li>
+                    <li>OperationLog: 操作日志</li>
+                </ul>
             </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">Retrieve Top-K Chunks</div>
+            <div>
+                <h5><i class="fas fa-key me-2 text-orange"></i> auth.py - 认证逻辑</h5>
+                <ul class="text-muted" style="font-size: 0.85rem;">
+                    <li>JWT令牌生成/验证</li>
+                    <li>密码加密/验证</li>
+                    <li>认证依赖函数</li>
+                </ul>
             </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">Build RAG Prompt</div>
+            <div>
+                <h5><i class="fas fa-file-code me-2 text-red"></i> schemas.py - 数据模式</h5>
+                <ul class="text-muted" style="font-size: 0.85rem;">
+                    <li>Pydantic模型定义</li>
+                    <li>请求/响应结构</li>
+                    <li>数据验证规则</li>
+                </ul>
             </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box">LLM Generation</div>
-            </div>
-            <div class="flow-arrow">→</div>
-            <div class="flow-layer">
-                <div class="flow-box" style="background: #dcfce7;">Response</div>
+            <div>
+                <h5><i class="fas fa-server me-2 text-pink"></i> services/ - 业务服务</h5>
+                <ul class="text-muted" style="font-size: 0.85rem;">
+                    <li>rag_service.py: RAG核心逻辑</li>
+                    <li>deepseek_client.py: LLM API调用</li>
+                    <li>vector_store.py: 向量数据库操作</li>
+                    <li>embedding.py: 文本嵌入处理</li>
+                </ul>
             </div>
         </div>
+    </div>
+
+    <!-- 6. 配置与环境 -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-cog"></i> 配置与环境</h2>
+        
+        <h3 class="subsection-title"><i class="fas fa-key"></i> 环境变量（.env）</h3>
         <div class="code-block">
-def rag_query(query: str) -> str:
-    # 1. 向量化
-    query_embedding = embedding.encode(query)
-    
-    # 2. 向量检索
-    results = vector_store.similarity_search(query_embedding, k=3)
-    
-    # 3. 构建上下文
-    context = "\n".join([doc.page_content for doc in results])
-    
-    # 4. 调用LLM
-    response = llm.generate(context + query)
-    return response
-        </div>
-    </div>
-
-    <!-- Features -->
-    <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-star"></i> 核心功能</h2>
-        <div class="feature-grid">
-            <div class="feature-card"><div class="icon icon-purple"><i class="fas fa-user-check"></i></div><h4>用户认证</h4><ul><li>用户注册登录</li><li>JWT令牌管理</li><li>密码修改重置</li><li>头像上传管理</li></ul></div>
-            <div class="feature-card"><div class="icon icon-green"><i class="fas fa-comments"></i></div><h4>聊天对话</h4><ul><li>会话创建管理</li><li>消息收发</li><li>对话历史</li><li>RAG检索增强</li></ul></div>
-            <div class="feature-card"><div class="icon icon-orange"><i class="fas fa-book"></i></div><h4>知识库管理</h4><ul><li>文档上传解析</li><li>向量化存储</li><li>共享知识库</li><li>文件管理</li></ul></div>
-            <div class="feature-card"><div class="icon icon-blue"><i class="fas fa-shield-halved"></i></div><h4>系统管理</h4><ul><li>用户列表管理</li><li>系统配置</li><li>操作日志查看</li><li>角色权限控制</li></ul></div>
-            <div class="feature-card"><div class="icon icon-red"><i class="fas fa-lock"></i></div><h4>安全保障</h4><ul><li>JWT认证</li><li>bcrypt加密</li><li>RBAC权限</li><li>CSRF防护</li></ul></div>
-            <div class="feature-card"><div class="icon icon-pink"><i class="fas fa-cog"></i></div><h4>架构设计</h4><ul><li>FastAPI异步</li><li>SQLAlchemy ORM</li><li>模块化路由</li><li>配置化管理</li></ul></div>
-        </div>
-    </div>
-
-    <!-- Error Handling -->
-    <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-exclamation-triangle"></i> 错误处理机制</h2>
-        <div class="two-col">
-            <div>
-                <h5 class="mb-3">HTTP状态码处理</h5>
-                <div class="code-block">
-HTTP 401 - 未授权（自动跳转登录）
-HTTP 403 - 权限不足（禁止访问）
-HTTP 400 - 参数错误（详细提示）
-HTTP 413 - 文件过大（2MB限制）
-HTTP 500 - 服务器错误（友好提示）
-HTTP 404 - 资源不存在
-                </div>
-            </div>
-            <div>
-                <h5 class="mb-3">安全校验</h5>
-                <div class="code-block">
-# 文件上传校验
-allowed_types = ['image/jpeg', 'image/png', 'image/webp']
-max_size = 2 * 1024 * 1024  # 2MB
-
-# SQL注入防护
-query = db.query(User).filter(User.email == email)
-
-# XSS防护
-response = escape_html(content)
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Deployment -->
-    <div class="section-card">
-        <h2 class="section-title"><i class="fas fa-rocket"></i> 部署配置</h2>
-        <div class="two-col">
-            <div>
-                <h5 class="mb-3"><i class="fas fa-key me-2 text-warning"></i>环境变量</h5>
-                <div class="code-block">
 # 数据库配置
 DATABASE_URL=sqlite:///./app.db
 
@@ -529,50 +856,212 @@ SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# DeepSeek API
+# DeepSeek API配置
 DEEPSEEK_API_KEY=your-api-key
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 
 # 上传配置
-MAX_FILE_SIZE=2097152
-ALLOWED_EXTENSIONS=jpg,jpeg,png,webp
+MAX_FILE_SIZE=314572800  # 300MB
+ALLOWED_EXTENSIONS=txt,md,docx,pdf
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-terminal"></i> 启动方式</h3>
+        <div class="two-col">
+            <div>
+                <h5>开发模式：</h5>
+                <div class="code-block">
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
                 </div>
             </div>
             <div>
-                <h5 class="mb-3"><i class="fas fa-terminal me-2 text-info"></i>启动命令</h5>
+                <h5>生产模式：</h5>
                 <div class="code-block">
-# 安装依赖
-pip install -r requirements.txt
-
-# 开发模式
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# 生产模式
 uvicorn main:app --host 0.0.0.0 --port 8000
                 </div>
             </div>
         </div>
-        <div class="info-box warning mt-4"><h5><i class="fas fa-exclamation-triangle me-1"></i> 安全建议</h5><p>修改SECRET_KEY，使用HTTPS，定期更换管理员密码，添加限流控制</p></div>
     </div>
 
-    <!-- Performance -->
+    <!-- 7. 安全考虑 -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-shield-alt"></i> 安全考虑</h2>
+        
+        <h3 class="subsection-title"><i class="fas fa-lock"></i> 认证安全</h3>
+        <div class="info-box">
+            <h5><i class="fas fa-check-circle me-1"></i> 认证安全措施</h5>
+            <p>JWT令牌存储：HttpOnly Cookie | 密码加密：bcrypt算法（10轮）| 令牌过期机制：30分钟自动失效 | CSRF防护：预留接口</p>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-upload"></i> 文件上传安全</h3>
+        <div class="info-box">
+            <h5><i class="fas fa-check-circle me-1"></i> 文件上传安全措施</h5>
+            <p>文件类型白名单验证 | 文件大小限制（知识库300MB/头像2MB）| 文件内容校验 | 存储路径随机化（UUID命名）| 禁止执行权限设置</p>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-shield-check"></i> 输入验证</h3>
+        <div class="info-box">
+            <h5><i class="fas fa-check-circle me-1"></i> 输入验证措施</h5>
+            <p>Pydantic模型强制验证 | SQL注入防护（ORM参数化查询）| XSS防护（前端模板自动转义）| 路径遍历防护</p>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-user-tag"></i> 访问控制</h3>
+        <div class="info-box">
+            <h5><i class="fas fa-check-circle me-1"></i> 访问控制措施</h5>
+            <p>基于角色的访问控制（RBAC）| 用户只能访问自己的资源 | 管理员权限隔离</p>
+        </div>
+    </div>
+
+    <!-- 8. 性能优化 -->
     <div class="section-card">
         <h2 class="section-title"><i class="fas fa-gauge-high"></i> 性能优化</h2>
+        
         <div class="three-col">
             <div class="stat-card">
                 <div class="stat-value">4</div>
                 <div class="stat-label">头像尺寸规格</div>
             </div>
             <div class="stat-card">
+                <div class="stat-value">300MB</div>
+                <div class="stat-label">知识库文件上传限制</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-value">2MB</div>
-                <div class="stat-label">文件上传限制</div>
+                <div class="stat-label">头像上传限制</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value">30min</div>
                 <div class="stat-label">令牌过期时间</div>
             </div>
         </div>
-        <div class="info-box mt-4"><h5><i class="fas fa-info-circle me-1"></i> 优化策略</h5><p>数据库索引优化、向量嵌入缓存、异步处理、静态资源缓存、旧文件自动清理</p></div>
+
+        <h3 class="subsection-title"><i class="fas fa-database"></i> 数据库优化</h3>
+        <ul class="text-muted" style="font-size: 0.9rem;">
+            <li><i class="fas fa-check text-success me-1"></i> 索引优化：常用查询字段建立索引</li>
+            <li><i class="fas fa-check text-success me-1"></i> 批量操作：减少数据库往返</li>
+            <li><i class="fas fa-check text-success me-1"></i> 连接池配置：复用数据库连接</li>
+        </ul>
+
+        <h3 class="subsection-title"><i class="fas fa-memory"></i> 缓存策略</h3>
+        <ul class="text-muted" style="font-size: 0.9rem;">
+            <li><i class="fas fa-check text-success me-1"></i> 向量嵌入结果缓存</li>
+            <li><i class="fas fa-check text-success me-1"></i> 会话上下文缓存</li>
+            <li><i class="fas fa-check text-success me-1"></i> 静态资源缓存（浏览器缓存头）</li>
+        </ul>
+
+        <h3 class="subsection-title"><i class="fas fa-spinner"></i> 异步处理</h3>
+        <ul class="text-muted" style="font-size: 0.9rem;">
+            <li><i class="fas fa-check text-success me-1"></i> FastAPI异步端点</li>
+            <li><i class="fas fa-check text-success me-1"></i> 数据库异步操作</li>
+            <li><i class="fas fa-check text-success me-1"></i> 长任务后台处理</li>
+        </ul>
+    </div>
+
+    <!-- 9. 可扩展性 -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-expand-arrows-alt"></i> 可扩展性</h2>
+        
+        <h3 class="subsection-title"><i class="fas fa-thumbs-up"></i> 当前架构优势</h3>
+        <div class="info-box">
+            <h5><i class="fas fa-info-circle me-1"></i> 架构特点</h5>
+            <p>模块化设计：各组件松耦合 | 配置化管理：通过环境变量配置 | API标准化：RESTful接口设计</p>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-arrow-right"></i> 扩展方向</h3>
+        <div class="feature-grid">
+            <div class="feature-card"><div class="icon icon-blue"><i class="fas fa-database"></i></div><h4>数据库扩展</h4><ul><li>支持PostgreSQL</li><li>支持MySQL</li></ul></div>
+            <div class="feature-card"><div class="icon icon-purple"><i class="fas fa-vector-square"></i></div><h4>向量数据库扩展</h4><ul><li>支持Pinecone</li><li>支持Weaviate</li></ul></div>
+            <div class="feature-card"><div class="icon icon-green"><i class="fas fa-brain"></i></div><h4>LLM扩展</h4><ul><li>支持多LLM提供商</li><li>模型切换能力</li></ul></div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-exclamation-triangle"></i> 限制与建议</h3>
+        <div class="info-box warning">
+            <h5><i class="fas fa-alert-circle me-1"></i> 注意事项</h5>
+            <p>SQLite不适合高并发场景，建议生产环境使用PostgreSQL | 向量数据库Chroma适合单机部署，大规模场景需考虑分布式方案 | 文件存储当前为本地文件系统，建议使用云存储（S3等）</p>
+        </div>
+    </div>
+
+    <!-- 10. 项目文件结构 -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-folder-tree"></i> 项目文件结构</h2>
+        <div class="diagram-box">
+project/
+├── main.py                 # 应用入口
+├── database.py             # 数据库配置
+├── models.py               # SQLAlchemy模型
+├── auth.py                 # 认证逻辑
+├── schemas.py              # Pydantic模式
+├── requirements.txt        # 依赖列表
+├── .env.example            # 环境变量示例
+├── app.db                  # SQLite数据库文件
+├── routers/
+│   ├── users.py            # 用户管理路由
+│   ├── chat.py             # 聊天消息路由
+│   ├── conversations.py    # 会话管理路由
+│   ├── knowledge.py        # 知识库路由
+│   └── admin.py            # 管理员路由
+├── services/
+│   ├── rag_service.py      # RAG服务
+│   ├── deepseek_client.py  # LLM客户端
+│   ├── vector_store.py     # 向量存储
+│   └── embedding.py        # 嵌入服务
+├── templates/
+│   ├── base.html           # 基础模板
+│   ├── login.html          # 登录页
+│   ├── register.html       # 注册页
+│   ├── chat.html           # 聊天页
+│   ├── knowledge.html      # 知识库管理页
+│   ├── shared_knowledge.html # 共享知识页
+│   ├── system.html         # 系统配置页
+│   └── admin.html          # 管理员页
+├── static/
+│   ├── avatars/            # 头像存储
+│   ├── css/                # 样式文件
+│   └── js/                 # JavaScript文件
+└── tests/
+    ├── test_avatar.py      # 头像测试
+    └── ...                 # 其他测试文件
+        </div>
+    </div>
+
+    <!-- 11. 总结 -->
+    <div class="section-card">
+        <h2 class="section-title"><i class="fas fa-trophy"></i> 项目总结</h2>
+        
+        <h3 class="subsection-title"><i class="fas fa-star"></i> 技术亮点</h3>
+        <div class="two-col">
+            <div>
+                <ul class="text-muted" style="font-size: 0.9rem;">
+                    <li><i class="fas fa-check text-success me-1"></i> 现代化技术栈（FastAPI + Bootstrap 5）</li>
+                    <li><i class="fas fa-check text-success me-1"></i> 完整的RAG检索增强生成能力</li>
+                </ul>
+            </div>
+            <div>
+                <ul class="text-muted" style="font-size: 0.9rem;">
+                    <li><i class="fas fa-check text-success me-1"></i> 安全的认证和权限管理</li>
+                    <li><i class="fas fa-check text-success me-1"></i> 模块化、可扩展的架构设计</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-list-check"></i> 功能完整性</h3>
+        <div class="feature-grid">
+            <div class="feature-card"><div class="icon icon-purple"><i class="fas fa-user-check"></i></div><h4>用户认证与管理</h4></div>
+            <div class="feature-card"><div class="icon icon-green"><i class="fas fa-comments"></i></div><h4>智能聊天对话</h4></div>
+            <div class="feature-card"><div class="icon icon-orange"><i class="fas fa-book"></i></div><h4>知识库管理</h4></div>
+            <div class="feature-card"><div class="icon icon-blue"><i class="fas fa-shield-halved"></i></div><h4>管理员后台</h4></div>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-target"></i> 适用场景</h3>
+        <div class="info-box">
+            <h5><i class="fas fa-info-circle me-1"></i> 应用场景</h5>
+            <p>企业内部智能助手 | 客服聊天机器人 | 知识库问答系统 | 个人AI助手</p>
+        </div>
+
+        <h3 class="subsection-title"><i class="fas fa-lightbulb"></i> 后续建议</h3>
+        <div class="info-box warning">
+            <h5><i class="fas fa-alert-circle me-1"></i> 优化建议</h5>
+            <p>添加单元测试覆盖关键路径 | 引入消息队列处理异步任务 | 考虑分布式部署方案 | 增加国际化支持</p>
+        </div>
     </div>
 </div>
 {% endblock %}
