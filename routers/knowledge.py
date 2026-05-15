@@ -37,12 +37,50 @@ def extract_text_from_txt(content_bytes: bytes) -> str:
 def extract_text_from_docx(content_bytes: bytes) -> str:
     try:
         from docx import Document
+        from docx.oxml.ns import qn
+        from docx.text.paragraph import Paragraph
+        from docx.table import Table
         import io
         doc = Document(io.BytesIO(content_bytes))
-        text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
-        if not text.strip():
+        body = doc.element.body
+        parts = []
+        for child in body:
+            tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+            if tag == 'p':
+                para = Paragraph(child, doc)
+                text = para.text.strip()
+                if text:
+                    parts.append(text)
+            elif tag == 'tbl':
+                table = Table(child, doc)
+                if table.rows:
+                    rows = table.rows
+                    ncols = len(rows[0].cells)
+                    grid = []
+                    for ri in range(len(rows)):
+                        row_cells = []
+                        for cell in rows[ri].cells:
+                            cell_text = cell.text.strip()
+                            tcPr = cell._tc.tcPr
+                            gridSpan = 1
+                            if tcPr is not None:
+                                gs_el = tcPr.find(qn('w:gridSpan'))
+                                if gs_el is not None:
+                                    gridSpan = int(gs_el.get(qn('w:val'), 1))
+                            for _ in range(gridSpan):
+                                row_cells.append(cell_text)
+                        while len(row_cells) < ncols:
+                            row_cells.append('')
+                        grid.append(row_cells[:ncols])
+                    md_lines = ['| ' + ' | '.join(grid[0]) + ' |']
+                    md_lines.append('|' + ''.join(' --- |' for _ in range(ncols)))
+                    for r in range(1, len(grid)):
+                        md_lines.append('| ' + ' | '.join(grid[r]) + ' |')
+                    parts.append('\n' + '\n'.join(md_lines) + '\n')
+        result = '\n\n'.join(parts)
+        if not result.strip():
             raise ValueError("Word document contains no extractable text")
-        return text
+        return result
     except HTTPException:
         raise
     except Exception as e:

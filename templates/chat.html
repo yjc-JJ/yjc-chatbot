@@ -211,7 +211,7 @@
         border-left: none;
         border-right: none;
         color: #6b7280;
-        transition: all 0.2s;
+        transition: all 0.3s ease;
         position: relative;
     }
     .voice-btn:hover {
@@ -221,7 +221,22 @@
         color: #ef4444;
         background: #fef2f2;
         border-color: #ef4444;
+        animation: voicePulse 1.5s ease-in-out infinite;
     }
+    .voice-btn.paused {
+        color: #f59e0b;
+        background: #fffbeb;
+        border-color: #f59e0b;
+        animation: voicePauseBlink 0.8s ease-in-out infinite;
+    }
+    .voice-btn.resumed {
+        color: #10b981;
+        background: #ecfdf5;
+        border-color: #10b981;
+        animation: voiceResumeFlash 0.6s ease-out;
+    }
+    .voice-btn .mic-icon { display: block; }
+    .voice-btn .pause-icon { display: none; width: 16px; height: 16px; }
     .voice-btn .stop-icon {
         display: none;
         width: 12px;
@@ -229,16 +244,35 @@
         background: #ef4444;
         border-radius: 2px;
     }
-    .voice-btn.recording .mic-icon {
-        display: none;
+    .voice-btn.recording .mic-icon { display: none; }
+    .voice-btn.recording .pause-icon { display: none; }
+    .voice-btn.recording .stop-icon { display: block; }
+    .voice-btn.paused .mic-icon { display: none; }
+    .voice-btn.paused .stop-icon { display: none; }
+    .voice-btn.paused .pause-icon { display: block; }
+    .voice-btn.resumed .mic-icon { display: none; }
+    .voice-btn.resumed .stop-icon { display: block; }
+    .voice-btn.resumed .pause-icon { display: none; }
+    @keyframes voicePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
     }
-    .voice-btn.recording .stop-icon {
-        display: block;
+    @keyframes voicePauseBlink {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+        50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(245,158,11,0); }
     }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+    @keyframes voiceResumeFlash {
+        0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+        50% { box-shadow: 0 0 0 12px rgba(16,185,129,0); }
+        100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
     }
+    #voiceStatus {
+        font-size: 0.8rem;
+        transition: color 0.3s;
+    }
+    #voiceStatus.paused { color: #f59e0b; }
+    #voiceStatus.resumed { color: #10b981; }
+    #voiceStatus.recording { color: #ef4444; }
     .send-btn {
         border-radius: 0 12px 12px 0 !important;
     }
@@ -329,6 +363,7 @@
                 <button class="btn btn-outline-secondary voice-btn" id="voiceBtn"
                     onclick="toggleVoice()" title="点击开始录音，再次点击结束">
                     <i class="bi bi-mic mic-icon"></i>
+                    <i class="bi bi-pause-circle pause-icon"></i>
                     <span class="stop-icon"></span>
                 </button>
                 <button class="btn btn-primary send-btn" id="sendBtn"
@@ -348,6 +383,14 @@ let currentConversationId = null;
 let isStreaming = false;
 let recognition = null;
 let isRecording = false;
+let voiceState = 'idle';
+let accumulatedTranscript = '';
+let sessionTranscript = '';
+let silenceTimer = null;
+let silenceThreshold = 1500;
+let silenceConfirmed = false;
+let resumedCount = 0;
+let audioCtx = null;
 let ragEnabled = true;
 let currentUser = null;
 
@@ -685,71 +728,211 @@ function updateAssistantTime(bubbleEl) {
     bubbleEl.removeAttribute('id');
 }
 
+function playBeep(freq, duration, type = 'sine') {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+}
+
+function setVoiceState(state) {
+    const btn = document.getElementById('voiceBtn');
+    const status = document.getElementById('voiceStatus');
+    btn.classList.remove('recording', 'paused', 'resumed');
+    status.classList.remove('recording', 'paused', 'resumed');
+
+    if (state === 'idle') {
+        voiceState = 'idle';
+        status.textContent = '';
+    } else if (state === 'listening') {
+        voiceState = 'listening';
+        btn.classList.add('recording');
+        status.classList.add('recording');
+        status.textContent = '正在聆听... 点击麦克风按钮结束录音';
+    } else if (state === 'paused') {
+        voiceState = 'paused';
+        btn.classList.add('paused');
+        status.classList.add('paused');
+        playBeep(880, 0.15);
+        status.textContent = '声音中断 - 等待中... (' + (silenceThreshold / 1000) + '秒后自动结束)';
+    } else if (state === 'resumed') {
+        voiceState = 'resumed';
+        btn.classList.add('resumed');
+        status.classList.add('resumed');
+        resumedCount++;
+        playBeep(1320, 0.1);
+        var total = sessionTranscript.length + accumulatedTranscript.length;
+        status.textContent = '已恢复录音 (已录入 ' + total + ' 字)';
+        setTimeout(function () {
+            if (voiceState === 'resumed') setVoiceState('listening');
+        }, 800);
+    }
+}
+
 function toggleVoice() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         showToast('您的浏览器不支持语音识别', 'error');
         return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (isRecording) {
-        stopRecording();
+    if (voiceState !== 'idle') {
+        finalizeRecording();
         if (recognition) {
-            recognition.stop();
+            try { recognition.stop(); } catch (e) {}
         }
         return;
     }
 
-    if (!recognition) {
-        recognition = new SpeechRecognition();
-        recognition.lang = 'zh-CN';
-        recognition.interimResults = true;
-        recognition.continuous = true;
-
-        recognition.onresult = (event) => {
-            let transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-            document.getElementById('messageInput').value = transcript;
-        };
-
-        recognition.onerror = (event) => {
-            console.error('语音识别错误:', event.error);
-            if (event.error !== 'no-speech') {
-                document.getElementById('voiceStatus').textContent = '识别错误: ' + event.error;
-            }
-            stopRecording();
-        };
-
-        recognition.onend = () => {
-            if (isRecording) {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    stopRecording();
-                }
-            }
-        };
-    }
-
+    initRecognition();
     try {
         recognition.start();
+        setVoiceState('listening');
         isRecording = true;
-        document.getElementById('voiceBtn').classList.add('recording');
-        document.getElementById('voiceStatus').textContent = '正在聆听... 点击麦克风按钮结束录音';
-        document.getElementById('messageInput').disabled = false;
     } catch (e) {
         console.error('语音识别启动失败:', e);
-        stopRecording();
+        setVoiceState('idle');
+        isRecording = false;
     }
 }
 
-function stopRecording() {
+function initRecognition() {
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'zh-CN';
+    recognition.interimResults = true;
+    recognition.continuous = true;
+
+    recognition.onresult = function (event) {
+        var newTranscript = '';
+        var hasFinal = false;
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+            newTranscript += event.results[i][0].transcript;
+            if (event.results[i].isFinal) hasFinal = true;
+        }
+
+        sessionTranscript = newTranscript;
+
+        if (hasFinal) {
+            clearTimeout(silenceTimer);
+            silenceTimer = null;
+            silenceConfirmed = false;
+            if (voiceState === 'paused') {
+                setVoiceState('resumed');
+            }
+        }
+
+        var fullText = accumulatedTranscript + newTranscript;
+        document.getElementById('messageInput').value = fullText;
+    };
+
+    recognition.onerror = function (event) {
+        console.log('语音识别事件:', event.error);
+        if (event.error === 'no-speech') {
+            if (!silenceConfirmed && voiceState === 'listening') {
+                setVoiceState('paused');
+                if (!silenceTimer) {
+                    silenceTimer = setTimeout(function () {
+                        silenceConfirmed = true;
+                        accumulatedTranscript += sessionTranscript;
+                        sessionTranscript = '';
+                        document.getElementById('messageInput').value = accumulatedTranscript;
+                        finalizeRecording();
+                        if (recognition) {
+                            try { recognition.stop(); } catch (e) {}
+                        }
+                    }, silenceThreshold);
+                }
+            }
+        } else if (event.error === 'aborted') {
+        } else {
+            document.getElementById('voiceStatus').textContent = '识别错误: ' + event.error;
+            if (voiceState !== 'idle') {
+                finalizeRecording();
+            }
+        }
+    };
+
+    recognition.onend = function () {
+        if (voiceState === 'idle') {
+            return;
+        }
+        if (voiceState === 'paused' && !silenceConfirmed) {
+            try {
+                recognition.start();
+            } catch (e) {
+                finalizeRecording();
+            }
+            return;
+        }
+        if (voiceState === 'listening') {
+            accumulatedTranscript += sessionTranscript;
+            sessionTranscript = '';
+            try {
+                recognition.start();
+                setVoiceState('listening');
+            } catch (e) {
+                document.getElementById('messageInput').value = accumulatedTranscript;
+                finalizeRecording();
+            }
+            return;
+        }
+        if (voiceState === 'resumed') {
+            accumulatedTranscript += sessionTranscript;
+            sessionTranscript = '';
+            try {
+                recognition.start();
+                setVoiceState('listening');
+            } catch (e) {
+                document.getElementById('messageInput').value = accumulatedTranscript;
+                finalizeRecording();
+            }
+            return;
+        }
+        if (!silenceConfirmed && voiceState !== 'idle') {
+            accumulatedTranscript += sessionTranscript;
+            sessionTranscript = '';
+            document.getElementById('messageInput').value = accumulatedTranscript;
+        }
+        finalizeRecording();
+    };
+
+    recognition.onaudiostart = function () {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+        silenceConfirmed = false;
+        if (voiceState === 'paused') {
+            setVoiceState('resumed');
+        }
+    };
+
+    recognition.onspeechstart = function () {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+        silenceConfirmed = false;
+        if (voiceState === 'paused') {
+            setVoiceState('resumed');
+        }
+    };
+}
+
+function finalizeRecording() {
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+    accumulatedTranscript += sessionTranscript;
+    sessionTranscript = '';
+    document.getElementById('messageInput').value = accumulatedTranscript;
     isRecording = false;
-    document.getElementById('voiceBtn').classList.remove('recording');
-    document.getElementById('voiceStatus').textContent = '';
+    accumulatedTranscript = '';
+    setVoiceState('idle');
 }
 
 document.getElementById('ragToggle').addEventListener('change', function() {

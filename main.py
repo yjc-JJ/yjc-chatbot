@@ -31,6 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger("main")
 
 templates = Jinja2Templates(directory="templates")
+templates.env.cache = None
 
 
 @asynccontextmanager

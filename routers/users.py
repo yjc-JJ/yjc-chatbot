@@ -25,7 +25,7 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 router = APIRouter(prefix="/api", tags=["users"])
 
 AVATAR_DIR = "static/avatars"
-MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2MB
+MAX_AVATAR_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_MIME_TYPES = {
     "image/jpeg",
@@ -198,7 +198,7 @@ async def upload_avatar(
     if file_size > MAX_AVATAR_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="头像文件大小不能超过2MB",
+            detail="头像文件大小不能超过10MB",
         )
     
     try:
