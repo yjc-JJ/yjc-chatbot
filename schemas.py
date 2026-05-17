@@ -86,15 +86,28 @@ class MessageResponse(BaseModel):
     id: int
     role: str
     content: str
+    emotion: Optional[str] = None
+    confidence: Optional[float] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
+class JWAccountRequest(BaseModel):
+    jw_account: str = Field(..., min_length=1, max_length=50)
+    jw_password: str = Field(..., min_length=1, max_length=128)
+
+
+class JWAccountResponse(BaseModel):
+    jw_account: Optional[str] = None
+    message: str
+
+
 class ChatRequest(BaseModel):
     message: str
     use_rag: Optional[bool] = True
+    use_search: Optional[bool] = False
 
 
 class KnowledgeFileResponse(BaseModel):

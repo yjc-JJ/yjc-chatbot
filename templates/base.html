@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}智能聊天机器人{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
             --sidebar-width: 280px;
@@ -128,6 +128,7 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="showUpdateUsernameModal()"><i class="bi bi-user"></i> 修改用户名</a></li>
                             <li><a class="dropdown-item" href="#" onclick="showUploadAvatarModal()"><i class="bi bi-image"></i> 上传头像</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showJWAccountModal()"><i class="bi bi-building"></i> 教务系统账号</a></li>
                             <li><a class="dropdown-item" href="#" onclick="showChangePasswordModal()"><i class="bi bi-key"></i> 修改密码</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
@@ -235,7 +236,38 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <div class="modal fade" id="jwAccountModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">教务系统账号设置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">教务系统账号</label>
+                        <input type="text" class="form-control" id="jwAccount" placeholder="请输入教务系统账号">
+                        <div class="form-text text-muted">用于查询课表等教务功能</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">教务系统密码</label>
+                        <input type="password" class="form-control" id="jwPassword" placeholder="请输入教务系统密码">
+                        <div class="form-text text-muted">密码将被加密存储，不会明文保存</div>
+                    </div>
+                    <div id="jwAccountStatus" class="mb-3 p-3 bg-info-subtle rounded-lg" style="display: none;">
+                        <div class="form-text text-muted" id="jwAccountStatusText"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="clearJWAccount()" style="display: none;" id="clearJWAccountBtn">清除账号</button>
+                    <button type="button" class="btn btn-primary" onclick="saveJWAccount()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/bootstrap.bundle.min.js"></script>
     <script>
         const TOKEN_KEY = 'rag_token';
         const USER_KEY = 'rag_user';
@@ -488,6 +520,100 @@
             } finally {
                 uploadBtn.disabled = false;
                 uploadBtn.innerHTML = '上传头像';
+            }
+        }
+
+        async function showJWAccountModal() {
+            const modal = new bootstrap.Modal(document.getElementById('jwAccountModal'));
+            const statusDiv = document.getElementById('jwAccountStatus');
+            const statusText = document.getElementById('jwAccountStatusText');
+            const clearBtn = document.getElementById('clearJWAccountBtn');
+            
+            // 清空表单
+            document.getElementById('jwAccount').value = '';
+            document.getElementById('jwPassword').value = '';
+            
+            // 隐藏状态和清除按钮
+            statusDiv.style.display = 'none';
+            clearBtn.style.display = 'none';
+            
+            // 尝试获取已保存的账号
+            try {
+                const resp = await api('/api/users/me/jwaccount');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.jw_account) {
+                        document.getElementById('jwAccount').value = data.jw_account;
+                        statusDiv.style.display = 'block';
+                        statusText.textContent = '已保存教务系统账号，密码已加密存储';
+                        clearBtn.style.display = 'inline-block';
+                    }
+                }
+            } catch (e) {
+                console.log('获取教务账号失败:', e);
+            }
+            
+            modal.show();
+        }
+
+        async function saveJWAccount() {
+            const account = document.getElementById('jwAccount').value.trim();
+            const password = document.getElementById('jwPassword').value;
+            const statusDiv = document.getElementById('jwAccountStatus');
+            const statusText = document.getElementById('jwAccountStatusText');
+            
+            if (!account) {
+                showToast('请输入教务系统账号', 'error');
+                return;
+            }
+            if (!password) {
+                showToast('请输入教务系统密码', 'error');
+                return;
+            }
+            
+            try {
+                const resp = await api('/api/users/me/jwaccount', {
+                    method: 'PUT',
+                    body: JSON.stringify({ jw_account: account, jw_password: password }),
+                });
+                
+                if (resp.ok) {
+                    showToast('教务系统账号保存成功', 'success');
+                    statusDiv.style.display = 'block';
+                    statusText.textContent = '已保存教务系统账号，密码已加密存储';
+                    document.getElementById('clearJWAccountBtn').style.display = 'inline-block';
+                    document.getElementById('jwPassword').value = '';
+                } else {
+                    const data = await resp.json();
+                    showToast(data.detail || '保存失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', 'error');
+            }
+        }
+
+        async function clearJWAccount() {
+            if (!confirm('确定要清除已保存的教务系统账号吗？')) {
+                return;
+            }
+            
+            try {
+                const resp = await api('/api/users/me/jwaccount', {
+                    method: 'DELETE',
+                });
+                
+                if (resp.ok) {
+                    showToast('教务系统账号已清除', 'success');
+                    document.getElementById('jwAccount').value = '';
+                    document.getElementById('jwPassword').value = '';
+                    document.getElementById('jwAccountStatus').style.display = 'none';
+                    document.getElementById('clearJWAccountBtn').style.display = 'none';
+                } else {
+                    const data = await resp.json();
+                    showToast(data.detail || '清除失败', 'error');
+                }
+            } catch (e) {
+                showToast('网络错误', 'error');
             }
         }
 

@@ -2,6 +2,7 @@
 知识库路由：文件上传、列表、删除、命名、共享管理
 支持 .txt, .md, .docx, .pdf
 """
+import datetime
 import logging
 import os
 import re
@@ -265,14 +266,22 @@ async def delete_file(
     if knowledge_file.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="无权删除该文件")
 
+    # 删除关联的知识图谱缓存
+    from services.knowledge_graph_service import delete_graph_cache
+    await delete_graph_cache(db, file_id)
+    logger.info(f"删除文件时同步删除知识图谱缓存: file_id={file_id}, filename={knowledge_file.filename}")
+
+    # 删除文档向量块
     await delete_document_chunks(
         user_id=knowledge_file.user_id,
         filename=knowledge_file.filename,
     )
 
+    # 删除文件记录
     await db.delete(knowledge_file)
     await db.commit()
 
+    logger.info(f"文件删除成功: file_id={file_id}, filename={knowledge_file.filename}")
     return {"message": "文件已删除"}
 
 
@@ -614,3 +623,96 @@ async def list_added_shared_knowledge(
         "page": page,
         "page_size": page_size,
     }
+
+
+@router.get("/files/{file_id}/graph")
+async def get_file_knowledge_graph(
+    file_id: int,
+    regenerate: bool = Query(False, description="是否强制重新生成图谱"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from services.rag_service import get_file_chunks
+    from services.knowledge_graph_service import (
+        generate_knowledge_graph,
+        format_graph_for_frontend,
+        get_graph_from_cache,
+        save_graph_to_cache,
+        delete_graph_cache
+    )
+
+    result = await db.execute(
+        select(KnowledgeFile).where(KnowledgeFile.id == file_id)
+    )
+    knowledge_file = result.scalar_one_or_none()
+    if not knowledge_file:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    if knowledge_file.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权访问该文件")
+
+    try:
+        if not regenerate:
+            cached_graph = await get_graph_from_cache(db, file_id)
+            if cached_graph:
+                logger.info(f"从缓存读取知识图谱: file_id={file_id}")
+                return cached_graph
+
+        logger.info(f"开始为文件生成知识图谱: file_id={file_id}, filename={knowledge_file.filename}")
+
+        chunks = await get_file_chunks(knowledge_file.user_id, knowledge_file.filename)
+
+        if not chunks:
+            return {
+                "nodes": [],
+                "edges": [],
+                "stats": {"total_nodes": 0, "total_edges": 0},
+                "message": "文件内容为空，无法生成图谱",
+                "cached": False
+            }
+
+        nodes, edges = await generate_knowledge_graph(chunks, max_nodes=50)
+        
+        if not nodes:
+            return {
+                "nodes": [],
+                "edges": [],
+                "stats": {"total_nodes": 0, "total_edges": 0},
+                "message": "未能从文件中提取到实体和关系",
+                "cached": False
+            }
+
+        graph_data = format_graph_for_frontend(nodes, edges)
+        graph_data["cached"] = False
+        graph_data["generated_at"] = datetime.datetime.utcnow().isoformat()
+
+        await save_graph_to_cache(db, file_id, graph_data)
+        logger.info(f"知识图谱已保存到缓存: file_id={file_id}")
+
+        return graph_data
+
+    except Exception as e:
+        logger.error(f"知识图谱生成失败: file_id={file_id}, error={type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"知识图谱生成失败: {str(e)}")
+
+
+@router.delete("/files/{file_id}/graph")
+async def delete_file_graph_cache(
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from services.knowledge_graph_service import delete_graph_cache
+
+    result = await db.execute(
+        select(KnowledgeFile).where(KnowledgeFile.id == file_id)
+    )
+    knowledge_file = result.scalar_one_or_none()
+    if not knowledge_file:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    if knowledge_file.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="无权操作该文件")
+
+    await delete_graph_cache(db, file_id)
+    return {"message": "图谱缓存已删除"}

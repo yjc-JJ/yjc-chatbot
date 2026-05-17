@@ -8,7 +8,7 @@ from typing import List, Tuple
 from dotenv import load_dotenv
 
 from services.embedding import get_embedding, get_embeddings
-from services.vector_store import index_document, delete_document_chunks, retrieve_relevant_chunks, get_file_chunks
+from services.vector_store import index_document, delete_document_chunks, retrieve_relevant_chunks, get_file_chunks, get_all_user_chunks
 
 load_dotenv()
 
@@ -74,24 +74,57 @@ async def retrieve_relevant_chunks_rag(
 
 def build_rag_prompt(
     user_query: str,
-    relevant_chunks: List[str],
-    conversation_history: List[dict],
+    relevant_chunks: List[str] = None,
+    conversation_history: List[dict] = None,
     use_rag: bool = True,
+    search_results: List[dict] = None,
 ) -> List[dict]:
+    if relevant_chunks is None:
+        relevant_chunks = []
+    if conversation_history is None:
+        conversation_history = []
+    if search_results is None:
+        search_results = []
+
+    # 构建上下文内容
+    context_parts = []
+
+    # 知识库检索结果
+    if use_rag and relevant_chunks:
+        kb_context = "【知识库相关片段】\n\n"
+        for i, chunk in enumerate(relevant_chunks, 1):
+            kb_context += f"[片段{i}]\n{chunk}\n\n"
+        context_parts.append(kb_context)
+
+    # 联网搜索结果
+    if search_results:
+        search_context = "【联网搜索结果】\n\n"
+        for i, result in enumerate(search_results, 1):
+            search_context += f"[搜索结果{i}]\n标题：{result.get('title', '')}\n来源：{result.get('source', '')}\n内容：{result.get('snippet', '')}\n"
+            url = result.get('url', '')
+            if url:
+                search_context += f"链接：{url}\n"
+            search_context += "\n"
+        context_parts.append(search_context)
+
+    # 根据上下文类型选择 system prompt
     if use_rag and relevant_chunks:
         system_prompt = """你是一个基于知识库的智能聊天机器人。请根据提供的知识库片段来回答用户的问题。
 
 规则：
-1. 如果知识库中有相关信息，请基于知识库内容进行回答，并在回答中引用相关片段。
-2. 如果知识库中没有相关信息，请如实告知用户，并尝试用你的通用知识提供帮助，但要说明这些信息并非来自知识库。
+1. 优先基于知识库内容进行回答，并在回答中引用相关片段。
+2. 如果知识库中没有相关信息，请如实告知用户。
 3. 回答要专业、准确、简洁。
-4. 如果用户的问题与知识库无关的闲聊，可以用友好的方式回应。"""
+4. 可以进行友好的闲聊。"""
+    elif search_results:
+        system_prompt = """你是一个具备联网搜索能力的智能聊天机器人。请根据提供的联网搜索结果来回答用户的问题。
 
-        context_text = "【知识库相关片段】\n\n"
-        for i, chunk in enumerate(relevant_chunks, 1):
-            context_text += f"[片段{i}]\n{chunk}\n\n"
-
-        user_message = f"{context_text}【用户问题】\n{user_query}"
+规则：
+1. 优先基于搜索结果中的信息进行回答，确保信息的准确性和时效性。
+2. 如果搜索结果中有具体的链接，可以在回答中引用。
+3. 如果搜索结果不足以回答问题，请如实告知用户。
+4. 回答要专业、准确、简洁。
+5. 可以进行友好的闲聊。"""
     else:
         system_prompt = """你是一个友好的智能聊天机器人。请用你的知识来回答用户的问题。
 
@@ -100,6 +133,10 @@ def build_rag_prompt(
 2. 如果不知道答案，请如实告知用户。
 3. 可以进行友好的闲聊。"""
 
+    # 拼接所有上下文和用户问题
+    if context_parts:
+        user_message = "".join(context_parts) + f"【用户问题】\n{user_query}"
+    else:
         user_message = user_query
 
     messages = [{"role": "system", "content": system_prompt}]

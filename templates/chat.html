@@ -90,6 +90,102 @@
     .rag-toggle .form-switch {
         margin: 0;
     }
+    .search-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-left: 20px;
+        padding-left: 20px;
+        border-left: 1px solid #e5e7eb;
+    }
+    .search-toggle .form-switch {
+        margin: 0;
+    }
+    .search-toggle.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    .search-toggle.disabled .form-check-input {
+        background-color: #d1d5db;
+        border-color: #d1d5db;
+    }
+    .chat-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .search-results-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: #3b82f6;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .search-results-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .search-result-item {
+        padding: 10px;
+        background: #f9fafb;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    .search-result-title {
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+    .search-result-snippet {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 6px;
+        line-height: 1.5;
+    }
+    .search-result-url {
+        font-size: 0.8rem;
+        color: #3b82f6;
+        text-decoration: none;
+        word-break: break-all;
+    }
+    .search-result-url:hover {
+        text-decoration: underline;
+    }
+    .search-results-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        color: #9ca3af;
+    }
+    .search-results-empty i {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+    .search-results-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        color: #dc2626;
+    }
+    .search-results-error i {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+    .search-error-suggestion {
+        font-size: 0.875rem;
+        color: #9ca3af;
+        margin-top: 8px;
+    }
     .messages-area {
         flex: 1;
         overflow-y: auto;
@@ -176,12 +272,55 @@
         border: 1px solid #e8ecf1;
         border-bottom-left-radius: 4px;
     }
-    .message .meta {
+    .message .emotion-tag {
         font-size: 0.75rem;
-        color: #999;
         margin-top: 4px;
-        padding: 0 4px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        display: inline-block;
+        font-weight: 500;
     }
+    .emotion-happy {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+    .emotion-confused {
+        background: #fef3c7;
+        color: #d97706;
+    }
+    .emotion-angry {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    .emotion-sad {
+        background: #e0e7ff;
+        color: #6366f1;
+    }
+    .emotion-surprised {
+        background: #fce7f3;
+        color: #db2777;
+    }
+    .emotion-anxious {
+        background: #fed7aa;
+        color: #ea580c;
+    }
+    .emotion-calm {
+        background: #d1fae5;
+        color: #059669;
+    }
+    .emotion-excited {
+        background: #fef9c3;
+        color: #ca8a04;
+    }
+    .emotion-disappointed {
+        background: #e5e7eb;
+        color: #6b7280;
+    }
+    .emotion-disgusted {
+        background: #d1fae5;
+        color: #059669;
+    }
+    
     .chat-input-area {
         padding: 16px 20px;
         border-top: 1px solid #e8ecf1;
@@ -340,11 +479,20 @@
     <div class="main-chat">
         <div class="chat-header" id="chatHeader" style="display:none;">
             <span class="title" id="chatTitle"></span>
-            <div class="rag-toggle">
-                <i class="bi bi-brain"></i>
-                <span>知识库检索</span>
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" id="ragToggle" checked>
+            <div class="chat-controls">
+                <div class="rag-toggle">
+                    <i class="bi bi-brain"></i>
+                    <span>知识库检索</span>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="ragToggle" checked onchange="handleRagToggle()">
+                    </div>
+                </div>
+                <div class="search-toggle" id="searchToggleContainer">
+                    <i class="bi bi-globe"></i>
+                    <span>联网搜索</span>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="searchToggle" onchange="handleSearchToggle()">
+                    </div>
                 </div>
             </div>
         </div>
@@ -392,7 +540,48 @@ let silenceConfirmed = false;
 let resumedCount = 0;
 let audioCtx = null;
 let ragEnabled = true;
+let searchEnabled = false;
 let currentUser = null;
+
+const STATE_KEY = 'chat_state';
+
+function saveChatState() {
+    const state = { ragEnabled, searchEnabled };
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+function restoreChatState() {
+    try {
+        const saved = localStorage.getItem(STATE_KEY);
+        if (saved) {
+            const state = JSON.parse(saved);
+            if (typeof state.ragEnabled === 'boolean') ragEnabled = state.ragEnabled;
+            if (typeof state.searchEnabled === 'boolean') searchEnabled = state.searchEnabled;
+        }
+    } catch (e) {}
+}
+
+function applyChatStateToUI() {
+    const ragToggle = document.getElementById('ragToggle');
+    const searchToggle = document.getElementById('searchToggle');
+    if (ragToggle) ragToggle.checked = ragEnabled;
+    if (searchToggle) searchToggle.checked = searchEnabled;
+    updateSearchToggleState();
+}
+
+// 情绪标签映射
+const emotionClassMap = {
+    '开心': 'emotion-happy',
+    '疑惑': 'emotion-confused',
+    '愤怒': 'emotion-angry',
+    '悲伤': 'emotion-sad',
+    '惊讶': 'emotion-surprised',
+    '焦虑': 'emotion-anxious',
+    '平静': 'emotion-calm',
+    '兴奋': 'emotion-excited',
+    '失望': 'emotion-disappointed',
+    '厌恶': 'emotion-disgusted'
+};
 
 async function loadConversations() {
     try {
@@ -459,7 +648,7 @@ async function createConversation() {
 
 async function selectConversation(id) {
     currentConversationId = id;
-    ragEnabled = document.getElementById('ragToggle').checked;
+    applyChatStateToUI();
 
     document.getElementById('chatHeader').style.display = 'flex';
     document.getElementById('noSessionOverlay').classList.remove('show');
@@ -527,7 +716,6 @@ function renderMessages(messages) {
             </div>
             <div>
                 <div class="bubble">${formatMessageContent(m.content)}</div>
-                <div class="meta">${formatTime(m.created_at)}</div>
             </div>
         </div>
     `).join('');
@@ -581,6 +769,8 @@ async function sendMessage() {
     if (!message) return;
 
     ragEnabled = document.getElementById('ragToggle').checked;
+    searchEnabled = document.getElementById('searchToggle').checked;
+    
     input.disabled = true;
     document.getElementById('sendBtn').disabled = true;
     isStreaming = true;
@@ -589,9 +779,26 @@ async function sendMessage() {
     input.value = '';
     input.style.height = 'auto';
 
-    const typingEl = appendTypingIndicator();
-
     try {
+        // 如果联网搜索开启，先执行搜索
+        if (searchEnabled && !ragEnabled) {
+            const typingEl = appendTypingIndicator();
+            
+            const searchResult = await performWebSearch(message);
+            removeTypingIndicator();
+            
+            if (searchResult.success) {
+                appendSearchResults(searchResult.results);
+            } else {
+                // 显示搜索失败提示
+                appendSearchError(searchResult.error, searchResult.suggestion);
+                showToast(searchResult.error || '搜索失败', 'error');
+            }
+        }
+
+        // 执行AI回复
+        const typingEl = appendTypingIndicator();
+        
         const token = getToken();
         const resp = await fetch(`/api/chat/${currentConversationId}`, {
             method: 'POST',
@@ -599,7 +806,11 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
             },
-            body: JSON.stringify({ message, use_rag: ragEnabled }),
+            body: JSON.stringify({ 
+                message, 
+                use_rag: ragEnabled,
+                use_search: searchEnabled 
+            }),
         });
 
         if (!resp.ok) {
@@ -641,6 +852,23 @@ async function sendMessage() {
     } catch (e) {
         removeTypingIndicator();
         showToast('发送失败: ' + e.message, 'error');
+    }
+
+    // 知识库检索关闭时，独立进行情绪分析（放在 try-catch 外避免被主流程异常吞掉）
+    try {
+        if (!ragEnabled) {
+            console.log('[情绪] 开始分析用户消息:', message.substring(0, 30));
+            const emotionResult = await analyzeEmotion(message);
+            console.log('[情绪] 分析结果:', emotionResult);
+            if (emotionResult.success && emotionResult.emotion) {
+                addEmotionTagToLastAssistantMessage(emotionResult.emotion);
+                console.log('[情绪] 标签已添加');
+            } else {
+                console.warn('[情绪] 分析失败或无情绪:', emotionResult);
+            }
+        }
+    } catch (emotionErr) {
+        console.error('[情绪] 分析异常:', emotionErr);
     } finally {
         isStreaming = false;
         input.disabled = false;
@@ -667,7 +895,6 @@ function appendUserMessage(content) {
         </div>
         <div>
             <div class="bubble">${escapeHtml(content)}</div>
-            <div class="meta">刚刚</div>
         </div>
     `;
     area.appendChild(div);
@@ -706,7 +933,6 @@ function appendAssistantBubble() {
         <div class="avatar"><i class="bi bi-robot"></i></div>
         <div>
             <div class="bubble"></div>
-            <div class="meta">生成中...</div>
         </div>
     `;
     area.appendChild(div);
@@ -721,10 +947,6 @@ function appendTokenToBubble(bubbleEl, token) {
 }
 
 function updateAssistantTime(bubbleEl) {
-    const meta = bubbleEl.querySelector('.meta');
-    if (meta) {
-        meta.textContent = '刚刚';
-    }
     bubbleEl.removeAttribute('id');
 }
 
@@ -935,9 +1157,177 @@ function finalizeRecording() {
     setVoiceState('idle');
 }
 
-document.getElementById('ragToggle').addEventListener('change', function() {
-    ragEnabled = this.checked;
-});
+function handleRagToggle() {
+    ragEnabled = document.getElementById('ragToggle').checked;
+    updateSearchToggleState();
+    saveChatState();
+}
+
+function handleSearchToggle() {
+    if (ragEnabled) {
+        document.getElementById('searchToggle').checked = false;
+        showToast('请先关闭知识库检索功能', 'warning');
+        return;
+    }
+    searchEnabled = document.getElementById('searchToggle').checked;
+    saveChatState();
+}
+
+function updateSearchToggleState() {
+    const searchContainer = document.getElementById('searchToggleContainer');
+    const searchToggle = document.getElementById('searchToggle');
+    
+    if (ragEnabled) {
+        // 知识库检索开启时，禁用联网搜索
+        searchContainer.classList.add('disabled');
+        searchToggle.checked = false;
+        searchEnabled = false;
+    } else {
+        // 知识库检索关闭时，启用联网搜索
+        searchContainer.classList.remove('disabled');
+    }
+}
+
+async function performWebSearch(query) {
+    try {
+        const resp = await api(`/api/search/web?query=${encodeURIComponent(query)}`);
+        const result = await resp.json();
+        return result;
+    } catch (e) {
+        console.error('搜索失败:', e);
+        return { success: false, error: '搜索失败', suggestion: '请检查网络连接' };
+    }
+}
+
+async function analyzeEmotion(message) {
+    try {
+        const resp = await api('/api/emotion/analyze', {
+            method: 'POST',
+            body: JSON.stringify({ message: message }),
+        });
+        const result = await resp.json();
+        return result;
+    } catch (e) {
+        console.error('情绪分析失败:', e);
+        return { success: false, emotion: '平静', confidence: 0 };
+    }
+}
+
+function addEmotionTagToLastAssistantMessage(emotion) {
+    const messagesArea = document.getElementById('messagesArea');
+    const assistantMessages = messagesArea.querySelectorAll('.message.assistant');
+    console.log('[情绪] 找到assistant消息数:', assistantMessages.length);
+    if (assistantMessages.length === 0) return;
+    
+    let lastMessage = null;
+    for (let i = assistantMessages.length - 1; i >= 0; i--) {
+        const msg = assistantMessages[i];
+        if (!msg.querySelector('.search-results-header') && !msg.querySelector('.search-results-empty') && !msg.querySelector('.search-results-error')) {
+            lastMessage = msg;
+            break;
+        }
+    }
+    
+    if (!lastMessage) {
+        lastMessage = assistantMessages[assistantMessages.length - 1];
+    }
+    
+    console.log('[情绪] 目标消息:', lastMessage.className, lastMessage.innerHTML.substring(0, 100));
+    
+    const bubbleContainer = lastMessage.querySelector('.bubble');
+    if (!bubbleContainer) {
+        console.error('[情绪] 未找到 .bubble 元素');
+        return;
+    }
+    
+    console.log('[情绪] 气泡容器找到，准备添加标签:', emotion);
+    
+    const emotionClass = emotionClassMap[emotion] || 'emotion-calm';
+    const emotionTag = document.createElement('span');
+    emotionTag.className = `emotion-tag ${emotionClass}`;
+    emotionTag.textContent = emotion;
+    
+    const existingTag = bubbleContainer.querySelector('.emotion-tag');
+    if (existingTag) {
+        existingTag.remove();
+    }
+    
+    bubbleContainer.appendChild(emotionTag);
+    console.log('[情绪] 标签已追加到DOM, bubble内容长度:', bubbleContainer.innerHTML.length);
+    scrollToBottom();
+}
+
+function appendSearchResults(results) {
+    const area = document.getElementById('messagesArea');
+    if (!results || results.length === 0) {
+        const div = document.createElement('div');
+        div.className = 'message assistant';
+        div.innerHTML = `
+            <div class="avatar">
+                <i class="bi bi-globe"></i>
+            </div>
+            <div>
+                <div class="bubble">
+                    <div class="search-results-empty">
+                        <i class="bi bi-search"></i>
+                        <p>未找到相关搜索结果</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        area.appendChild(div);
+        return;
+    }
+
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.innerHTML = `
+        <div class="avatar">
+            <i class="bi bi-globe"></i>
+        </div>
+        <div>
+            <div class="bubble">
+                <div class="search-results-header">
+                    <i class="bi bi-search"></i>
+                    <span>联网搜索结果</span>
+                </div>
+                <div class="search-results-list">
+                    ${results.slice(0, 5).map((result, index) => `
+                        <div class="search-result-item">
+                            <div class="search-result-title">${index + 1}. ${escapeHtml(result.title)}</div>
+                            <div class="search-result-snippet">${escapeHtml(result.snippet)}</div>
+                            <a href="${result.url}" target="_blank" class="search-result-url">${result.url}</a>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    area.appendChild(div);
+    scrollToBottom();
+}
+
+function appendSearchError(error, suggestion) {
+    const area = document.getElementById('messagesArea');
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.innerHTML = `
+        <div class="avatar">
+            <i class="bi bi-globe"></i>
+        </div>
+        <div>
+            <div class="bubble">
+                <div class="search-results-error">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <p>${escapeHtml(error || '搜索失败')}</p>
+                    ${suggestion ? `<p class="search-error-suggestion">${escapeHtml(suggestion)}</p>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    area.appendChild(div);
+    scrollToBottom();
+}
 
 async function loadCurrentUser() {
     try {
@@ -949,6 +1339,7 @@ async function loadCurrentUser() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    restoreChatState();
     if (getToken()) {
         loadCurrentUser();
         loadConversations();

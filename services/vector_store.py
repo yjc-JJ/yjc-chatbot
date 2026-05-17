@@ -162,10 +162,37 @@ async def get_file_chunks(user_id: int, filename: str) -> list:
             for chunk_id, content, chunk_index in cursor.fetchall():
                 chunks.append({
                     "chunk_id": chunk_id,
+                    "filename": filename,
                     "content": content,
                     "index": chunk_index,
                 })
             
+            conn.close()
+            return chunks
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _get_chunks)
+
+
+async def get_all_user_chunks(user_id: int) -> List[dict]:
+    def _get_chunks():
+        with _db_lock:
+            conn = sqlite3.connect(VECTOR_DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT id, filename, content, chunk_index FROM vectors WHERE user_id = ? ORDER BY filename, chunk_index',
+                (user_id,)
+            )
+
+            chunks = []
+            for chunk_id, filename, content, chunk_index in cursor.fetchall():
+                chunks.append({
+                    "chunk_id": chunk_id,
+                    "filename": filename,
+                    "content": content,
+                    "index": chunk_index,
+                })
+
             conn.close()
             return chunks
 

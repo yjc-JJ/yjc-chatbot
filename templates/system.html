@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="/static/mermaid.min.js"></script>
 <script>
     mermaid.initialize({ startOnLoad: true });
 </script>
@@ -512,9 +512,11 @@ flowchart TB
             </thead>
             <tbody>
                 <tr><td><strong>用户认证</strong></td><td>注册、登录、密码重置</td><td><span class="text-success">✅ 已实现</span></td></tr>
-                <tr><td><strong>用户管理</strong></td><td>个人信息、头像上传、角色管理</td><td><span class="text-success">✅ 已实现</span></td></tr>
-                <tr><td><strong>聊天对话</strong></td><td>创建会话、发送消息、历史记录、语音输入（断点续录）</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>用户管理</strong></td><td>个人信息、头像上传、角色管理、教务系统账号管理</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>聊天对话</strong></td><td>创建会话、发送消息、历史记录、语音输入（断点续录）、情感识别</td><td><span class="text-success">✅ 已实现</span></td></tr>
                 <tr><td><strong>RAG知识库</strong></td><td>文档上传、知识检索、向量管理</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>教务系统集成</strong></td><td>课表查询、密码验证、账号管理</td><td><span class="text-success">✅ 已实现</span></td></tr>
+                <tr><td><strong>情感分析</strong></td><td>LLM情感识别、情感标签持久化、缓存优化</td><td><span class="text-success">✅ 已实现</span></td></tr>
                 <tr><td><strong>系统管理</strong></td><td>用户管理、配置管理、日志查看</td><td><span class="text-success">✅ 已实现</span></td></tr>
             </tbody>
         </table>
@@ -554,6 +556,7 @@ async def authenticate_user(db: Session, email: str, password: str):
                     <li>头像上传（支持JPG/PNG/WEBP，10MB限制）</li>
                     <li>多尺寸头像生成（original/large/medium/small）</li>
                     <li>旧头像文件自动清理</li>
+                    <li>教务系统账号管理（账号密码加密存储）</li>
                 </ul>
             </div>
             <div>
@@ -568,6 +571,27 @@ sizes = {
                 </div>
             </div>
         </div>
+        
+        <h3 class="subsection-title"><i class="fas fa-building"></i> 教务系统账号管理</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>用户可自行填写并保存教务系统账号和密码</li>
+                    <li>密码使用可逆加密（XOR）存储，确保安全性</li>
+                    <li>支持账号查询、更新和删除操作</li>
+                    <li>密码验证失败时返回明确的"密码错误"提示</li>
+                </ul>
+            </div>
+            <div>
+                <strong>API接口：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+PUT  /api/users/me/jwaccount  # 保存/更新账号
+GET  /api/users/me/jwaccount  # 查询已保存账号
+DELETE /api/users/me/jwaccount # 删除账号
+                </div>
+            </div>
+        </div>
 
         <h3 class="subsection-title"><i class="fas fa-comments"></i> 聊天对话模块</h3>
         <div class="two-col">
@@ -579,6 +603,7 @@ sizes = {
                     <li>查看对话历史</li>
                     <li>会话列表管理</li>
                     <li>语音输入（浏览器 Web Speech API，支持断点续录、中断检测与自动恢复）</li>
+                    <li>情感识别（基于LLM的情感分析，支持10种情感标签）</li>
                 </ul>
             </div>
             <div>
@@ -599,6 +624,31 @@ accumulatedTranscript: 跨 session 持久化缓存
 # Conversation: 会话实体
 # ChatMessage: 消息实体（关联会话和用户）
 # 消息类型：user(用户消息), assistant(AI响应), system(系统消息)
+# 情感字段：emotion(情感标签), confidence(置信度)
+                </div>
+            </div>
+        </div>
+        
+        <h3 class="subsection-title"><i class="fas fa-heart"></i> 情感识别模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>基于LLM模型进行情感分析，准确性更高</li>
+                    <li>支持10种情感标签：开心、疑惑、愤怒、悲伤、惊讶、焦虑、平静、兴奋、失望、厌恶</li>
+                    <li>LLM不可用时自动切换到本地关键词匹配作为备选</li>
+                    <li>情感标签与回复内容同步返回至前端</li>
+                    <li>情感标签持久化存储，历史对话完整保留</li>
+                </ul>
+            </div>
+            <div>
+                <strong>技术特点：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+# 响应时间目标：≤500ms
+# 缓存机制：lru_cache(500条)
+# 置信度范围：0.0-1.0
+# 情感标签：开心、疑惑、愤怒、悲伤、惊讶、焦虑、平静、兴奋、失望、厌恶
+# 备选方案：本地关键词匹配（LLM不可用时自动切换）
                 </div>
             </div>
         </div>
@@ -616,6 +666,26 @@ context = "\n".join([doc.page_content for doc in results])
 
 # 4. 调用LLM生成响应
 response = deepseek_client.generate(context + query)
+        </div>
+        
+        <h3 class="subsection-title"><i class="fas fa-calendar"></i> 教务系统集成模块</h3>
+        <div class="two-col">
+            <div>
+                <strong>功能描述：</strong>
+                <ul class="text-muted" style="margin-top: 8px;">
+                    <li>课表查询：获取今日/指定日期的课程表</li>
+                    <li>账户认证：使用用户保存的教务系统账号密码登录</li>
+                    <li>密码验证：密码错误时返回明确的"密码错误"提示</li>
+                    <li>多账号支持：每个用户可独立配置自己的教务账号</li>
+                </ul>
+            </div>
+            <div>
+                <strong>API接口：</strong>
+                <div class="code-block" style="font-size: 0.75rem;">
+GET /api/schedule/today    # 获取今日课表（使用用户保存的账号）
+POST /api/schedule/today   # 获取今日课表（传入账号密码）
+                </div>
+            </div>
         </div>
 
         <h3 class="subsection-title"><i class="fas fa-book-open"></i> 知识库管理模块</h3>
@@ -698,6 +768,8 @@ erDiagram
         string avatar_url "头像URL"
         string role "角色: user/admin"
         boolean is_active "是否活跃"
+        string jw_account "教务系统账号"
+        string jw_password "教务系统密码(加密)"
         datetime created_at "创建时间"
         datetime updated_at "更新时间"
     }
@@ -715,6 +787,8 @@ erDiagram
         int conversation_id FK "会话ID"
         string role "角色: user/assistant/system"
         string content "消息内容"
+        string emotion "情感标签"
+        float confidence "情感置信度"
         datetime created_at "创建时间"
     }
     
@@ -768,7 +842,10 @@ erDiagram
                 <h5><i class="fas fa-user me-2"></i>用户管理</h5>
                 <span class="method method-get">GET</span>/api/users/me<br>
                 <span class="method method-post">POST</span>/api/users/me/avatar<br>
-                <span class="method method-get">GET</span>/api/users/me/avatar
+                <span class="method method-get">GET</span>/api/users/me/avatar<br>
+                <span class="method method-put">PUT</span>/api/users/me/jwaccount<br>
+                <span class="method method-get">GET</span>/api/users/me/jwaccount<br>
+                <span class="method method-delete">DEL</span>/api/users/me/jwaccount
             </div>
             <div class="api-card">
                 <h5><i class="fas fa-comments me-2"></i>会话管理</h5>
@@ -786,6 +863,15 @@ erDiagram
                 <span class="method method-post">POST</span>/api/knowledge/upload<br>
                 <span class="method method-get">GET</span>/api/knowledge/list<br>
                 <span class="method method-delete">DEL</span>/api/knowledge/{id}
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-calendar me-2"></i>教务系统</h5>
+                <span class="method method-get">GET</span>/api/schedule/today<br>
+                <span class="method method-post">POST</span>/api/schedule/today
+            </div>
+            <div class="api-card">
+                <h5><i class="fas fa-heart me-2"></i>情感分析</h5>
+                <span class="method method-post">POST</span>/api/emotion/analyze
             </div>
             <div class="api-card">
                 <h5><i class="fas fa-shield-halved me-2"></i>管理员</h5>
@@ -850,6 +936,8 @@ erDiagram
                     <li>deepseek_client.py: LLM API调用</li>
                     <li>vector_store.py: 向量数据库操作</li>
                     <li>embedding.py: 文本嵌入处理</li>
+                    <li>emotion_service.py: 情感分析服务</li>
+                    <li>course_schedule_service.py: 教务系统集成</li>
                 </ul>
             </div>
         </div>
@@ -1011,12 +1099,16 @@ project/
 │   ├── chat.py             # 聊天消息路由
 │   ├── conversations.py    # 会话管理路由
 │   ├── knowledge.py        # 知识库路由
+│   ├── schedule.py         # 教务系统路由
+│   ├── emotion.py          # 情感分析路由
 │   └── admin.py            # 管理员路由
 ├── services/
 │   ├── rag_service.py      # RAG服务
 │   ├── deepseek_client.py  # LLM客户端
 │   ├── vector_store.py     # 向量存储
-│   └── embedding.py        # 嵌入服务
+│   ├── embedding.py        # 嵌入服务
+│   ├── emotion_service.py  # 情感分析服务
+│   └── course_schedule_service.py # 教务系统服务
 ├── templates/
 │   ├── base.html           # 基础模板
 │   ├── login.html          # 登录页
@@ -1046,12 +1138,14 @@ project/
                 <ul class="text-muted" style="font-size: 0.9rem;">
                     <li><i class="fas fa-check text-success me-1"></i> 现代化技术栈（FastAPI + Bootstrap 5）</li>
                     <li><i class="fas fa-check text-success me-1"></i> 完整的RAG检索增强生成能力</li>
+                    <li><i class="fas fa-check text-success me-1"></i> 基于LLM的情感分析（支持10种情感标签）</li>
                 </ul>
             </div>
             <div>
                 <ul class="text-muted" style="font-size: 0.9rem;">
                     <li><i class="fas fa-check text-success me-1"></i> 安全的认证和权限管理</li>
                     <li><i class="fas fa-check text-success me-1"></i> 模块化、可扩展的架构设计</li>
+                    <li><i class="fas fa-check text-success me-1"></i> 教务系统集成（课表查询功能）</li>
                 </ul>
             </div>
         </div>
@@ -1062,6 +1156,8 @@ project/
             <div class="feature-card"><div class="icon icon-green"><i class="fas fa-comments"></i></div><h4>智能聊天对话（含语音输入）</h4></div>
             <div class="feature-card"><div class="icon icon-orange"><i class="fas fa-book"></i></div><h4>知识库管理</h4></div>
             <div class="feature-card"><div class="icon icon-blue"><i class="fas fa-shield-halved"></i></div><h4>管理员后台</h4></div>
+            <div class="feature-card"><div class="icon icon-red"><i class="fas fa-heart"></i></div><h4>情感分析模块</h4></div>
+            <div class="feature-card"><div class="icon icon-cyan"><i class="fas fa-calendar"></i></div><h4>教务系统集成</h4></div>
         </div>
 
         <h3 class="subsection-title"><i class="fas fa-target"></i> 适用场景</h3>

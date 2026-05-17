@@ -2,15 +2,19 @@
 {% block title %}知识库管理 - 智能聊天机器人{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.2/styles/vis-network.min.css" />
+<script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
 <style>
     .file-card {
-        transition: all 0.2s;
+        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
     }
     .file-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.1);
+        border-color: #c7d2fe;
     }
     .chunk-preview {
-        background: #f8f9fa;
+        background: #f8fafc;
         border-radius: 8px;
         padding: 12px;
         margin-top: 8px;
@@ -20,7 +24,7 @@
     }
     .chunk-item {
         padding: 8px;
-        border-bottom: 1px solid #e9ecef;
+        border-bottom: 1px solid #e2e8f0;
     }
     .chunk-item:last-child {
         border-bottom: none;
@@ -54,6 +58,217 @@
         font-size: 0.75rem;
         padding: 2px 8px;
     }
+    .graph-container {
+        height: 600px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e2e8f0;
+        position: relative;
+        overflow: hidden;
+    }
+    .graph-stats {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    .graph-stat {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        padding: 8px 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+    .graph-stat .badge {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        font-weight: 600;
+    }
+    .entity-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+    }
+    .entity-type-badge.person { background-color: #fee2e2; color: #dc2626; }
+    .entity-type-badge.organization { background-color: #dbeafe; color: #2563eb; }
+    .entity-type-badge.concept { background-color: #f3e8ff; color: #7c3aed; }
+    .entity-type-badge.technology { background-color: #d1fae5; color: #059669; }
+    .entity-type-badge.other { background-color: #f3f4f6; color: #6b7280; }
+    .node-detail-panel {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        padding: 20px;
+        min-width: 280px;
+        max-width: 350px;
+    }
+    .node-detail-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #1e293b;
+    }
+    .node-detail-info {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .node-detail-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 4px;
+    }
+    .node-detail-value {
+        font-size: 0.95rem;
+        color: #1e293b;
+        font-weight: 500;
+    }
+    .related-nodes-list {
+        margin-top: 16px;
+    }
+    .related-nodes-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 10px;
+    }
+    .related-node-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .related-node-item:hover {
+        background: #e2e8f0;
+        transform: translateX(4px);
+    }
+    .related-node-label {
+        flex: 1;
+        font-size: 0.85rem;
+        color: #334155;
+    }
+    .related-node-relation {
+        font-size: 0.75rem;
+        color: #64748b;
+        background: #e2e8f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    .graph-actions {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    .graph-action-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+    .graph-action-btn.primary {
+        background: #4f46e5;
+        color: white;
+    }
+    .graph-action-btn.primary:hover {
+        background: #4338ca;
+    }
+    .graph-action-btn.secondary {
+        background: #f1f5f9;
+        color: #334155;
+    }
+    .graph-action-btn.secondary:hover {
+        background: #e2e8f0;
+    }
+    .graph-action-btn.danger {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    .graph-action-btn.danger:hover {
+        background: #fecaca;
+    }
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    .empty-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    .error-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    .legend-container {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .legend-color.person { background-color: #e74c3c; }
+    .legend-color.organization { background-color: #3498db; }
+    .legend-color.concept { background-color: #9b59b6; }
+    .legend-color.technology { background-color: #1abc9c; }
+    .legend-color.other { background-color: #95a5a6; }
 </style>
 {% endblock %}
 
@@ -151,12 +366,139 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="graphModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-diagram-3" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <h5 class="modal-title mb-0">知识图谱</h5>
+                        <small id="graphFileName" class="text-indigo-200"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-6">
+                <div class="graph-stats" id="graphStats">
+                    <div class="graph-stat">
+                        <i class="bi bi-circle-nodes text-indigo-500"></i>
+                        <span class="text-muted">节点数</span>
+                        <span class="badge bg-indigo-500 text-white" id="nodeCount">0</span>
+                    </div>
+                    <div class="graph-stat">
+                        <i class="bi bi-link-45deg text-green-500"></i>
+                        <span class="text-muted">边数</span>
+                        <span class="badge bg-green-500 text-white" id="edgeCount">0</span>
+                    </div>
+                    <div class="graph-stat" id="graphCachedBadge" style="display: none;">
+                        <i class="bi bi-cache text-yellow-500"></i>
+                        <span class="text-muted">缓存</span>
+                        <span class="badge bg-yellow-500 text-white">已缓存</span>
+                    </div>
+                    <div class="graph-stat">
+                        <i class="bi bi-clock text-gray-500"></i>
+                        <span class="text-muted">生成时间</span>
+                        <span id="graphGeneratedTime" class="text-gray-600">-</span>
+                    </div>
+                </div>
+
+                <div class="legend-container" id="graphLegend">
+                    <div class="legend-item">
+                        <div class="legend-color person"></div>
+                        <span>人物</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color organization"></div>
+                        <span>组织</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color concept"></div>
+                        <span>概念</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color technology"></div>
+                        <span>技术</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color other"></div>
+                        <span>其他</span>
+                    </div>
+                </div>
+
+                <div class="graph-actions">
+                    <button class="graph-action-btn primary" onclick="regenerateGraph()">
+                        <i class="bi bi-arrow-clockwise"></i> 重新生成图谱
+                    </button>
+                    <button class="graph-action-btn secondary" onclick="resetGraphView()">
+                        <i class="bi bi-arrow-left-right"></i> 重置视角
+                    </button>
+                    <button class="graph-action-btn secondary" onclick="fitGraphView()">
+                        <i class="bi bi-zoom-out"></i> 适配视图
+                    </button>
+                    <button class="graph-action-btn danger" id="clearCacheBtn" style="display: none;" onclick="clearGraphCache()">
+                        <i class="bi bi-trash"></i> 清除缓存
+                    </button>
+                </div>
+
+                <div id="graphContainer" class="graph-container">
+                    <div class="loading-overlay" id="graphLoading">
+                        <div class="spinner-border text-indigo-500" style="width: 3rem; height: 3rem;" role="status"></div>
+                        <p class="mt-4 text-gray-600">正在生成知识图谱...</p>
+                        <small class="text-gray-400">请稍候，这可能需要一些时间</small>
+                    </div>
+                    <div class="empty-overlay" id="graphEmpty" style="display:none;">
+                        <i class="bi bi-inbox" style="font-size:4rem; color: #cbd5e1;"></i>
+                        <p class="mt-4 text-gray-500">文件内容为空或未能提取到实体</p>
+                        <small class="text-gray-400" id="graphEmptyMsg"></small>
+                    </div>
+                    <div class="error-overlay" id="graphError" style="display:none;">
+                        <i class="bi bi-exclamation-triangle" style="font-size:4rem; color: #f87171;"></i>
+                        <p class="mt-4 text-gray-500">图谱生成失败</p>
+                        <small class="text-gray-400" id="graphErrorMsg"></small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-gray-50 border-t">
+                <div class="text-sm text-gray-500">
+                    <i class="bi bi-info-circle"></i> 拖拽节点可调整布局 | 滚轮缩放 | 点击节点查看详情
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="nodeDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">节点详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="nodeDetailContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
 let currentUploadId = null;
 let renameFileId = null;
+let graphNetwork = null;
+let currentGraphFileId = null;
+let currentGraphData = null;
 
 async function loadFiles() {
     const user = getUser();
@@ -193,43 +535,60 @@ function formatFileSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+function formatTime(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
 function renderFiles(files) {
     const container = document.getElementById('filesContainer');
     if (files.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-inbox" style="font-size:3rem;"></i>
-                <p class="mt-2">还没有上传任何文件</p>
+            <div class="text-center py-8 text-muted">
+                <i class="bi bi-inbox" style="font-size:4rem;"></i>
+                <p class="mt-3">还没有上传任何文件</p>
+                <p class="text-sm">点击右上角按钮上传知识库文件</p>
             </div>`;
         return;
     }
     container.innerHTML = files.map(f => `
-        <div class="card mb-2 file-card">
-            <div class="card-body py-3">
+        <div class="card mb-3 file-card">
+            <div class="card-body py-4">
                 <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="bi ${getFileIcon(f.original_filename)} me-2"></i>
-                            <span id="name-${f.id}">${escapeHtml(f.name || f.original_filename)}</span>
-                            <span class="text-muted ms-2">用户ID: ${f.user_id}</span>
-                            ${f.is_shared ? '<span class="badge bg-success share-badge">已共享</span>' : ''}
-                        </h6>
-                        <small class="text-muted">
-                            <i class="bi bi-layers me-1"></i>分段数: ${f.chunk_count} |
-                            <i class="bi bi-hdd me-1"></i>大小: ${formatFileSize(f.file_size)} |
-                            <i class="bi bi-clock me-1"></i>上传时间: ${formatTime(f.created_at)}
-                        </small>
+                    <div class="flex-1">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi ${getFileIcon(f.original_filename)} text-indigo-500" style="font-size: 1.25rem;"></i>
+                            <h6 class="mb-0">
+                                <span id="name-${f.id}">${escapeHtml(f.name || f.original_filename)}</span>
+                                ${f.is_shared ? '<span class="badge bg-green-100 text-green-700 ms-2">已共享</span>' : ''}
+                            </h6>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <span class="me-3"><i class="bi bi-layers"></i> ${f.chunk_count} 个分段</span>
+                            <span class="me-3"><i class="bi bi-hdd"></i> ${formatFileSize(f.file_size)}</span>
+                            <span><i class="bi bi-clock"></i> ${formatTime(f.created_at)}</span>
+                        </div>
                     </div>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary" onclick="showRenameModal(${f.id}, '${escapeHtml(f.name || f.original_filename)}')" title="重命名">
-                            <i class="bi bi-pencil"></i> 重命名
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-indigo" onclick="showKnowledgeGraph(${f.id}, '${escapeHtml(f.name || f.original_filename)}')" title="查看知识图谱">
+                            <i class="bi bi-diagram-3"></i> 图谱
                         </button>
-                        <button class="btn btn-outline-primary" onclick="viewChunks(${f.id})" title="查看分块">
-                            <i class="bi bi-layers"></i> 分块
+                        <button class="btn btn-outline-secondary" onclick="showRenameModal(${f.id}, '${escapeHtml(f.name || f.original_filename)}')" title="重命名">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-info" onclick="viewChunks(${f.id})" title="查看分块">
+                            <i class="bi bi-layers"></i>
                         </button>
                         <button class="btn ${f.is_shared ? 'btn-outline-warning' : 'btn-outline-success'}" 
                                 onclick="toggleShare(${f.id}, ${!f.is_shared})" title="${f.is_shared ? '取消共享' : '共享'}">
-                            <i class="bi ${f.is_shared ? 'bi-unlock' : 'bi-lock'}"></i> ${f.is_shared ? '取消共享' : '共享'}
+                            <i class="bi ${f.is_shared ? 'bi-unlock' : 'bi-lock'}"></i>
                         </button>
                         <button class="btn btn-outline-danger" onclick="deleteFile(${f.id})" title="删除">
                             <i class="bi bi-trash"></i>
@@ -412,7 +771,7 @@ async function viewChunks(fileId) {
 
         if (data.chunks && data.chunks.length > 0) {
             body.innerHTML = `
-                <div class="alert alert-info">
+                <div class="alert alert-info mb-3">
                     <i class="bi bi-info-circle"></i> 共 ${data.total} 个分块
                 </div>
                 <div class="chunk-preview">
@@ -432,7 +791,7 @@ async function viewChunks(fileId) {
 }
 
 async function deleteFile(id) {
-    if (!confirm('确定删除此文件？对应的向量数据也将被清除。')) return;
+    if (!confirm('确定删除此文件？对应的向量数据和知识图谱也将被清除。')) return;
     try {
         const resp = await api(`/api/knowledge/files/${id}`, { method: 'DELETE' });
         if (resp.ok) {
@@ -444,6 +803,361 @@ async function deleteFile(id) {
         }
     } catch (e) {
         showToast('删除失败', 'error');
+    }
+}
+
+let graphModalInstance = null;
+
+async function showKnowledgeGraph(fileId, fileName) {
+    currentGraphFileId = fileId;
+    document.getElementById('graphFileName').textContent = fileName || '未知文件';
+    
+    const graphLoading = document.getElementById('graphLoading');
+    const graphEmpty = document.getElementById('graphEmpty');
+    const graphError = document.getElementById('graphError');
+    const graphErrorMsg = document.getElementById('graphErrorMsg');
+    const graphEmptyMsg = document.getElementById('graphEmptyMsg');
+
+    // 确保容器被正确初始化
+    const graphContainer = document.getElementById('graphContainer');
+    if (!graphContainer.querySelector('.loading-overlay')) {
+        // 重新创建覆盖层
+        const overlayHTML = `
+            <div class="loading-overlay" id="graphLoading">
+                <div class="spinner-border text-indigo-500" style="width: 3rem; height: 3rem;" role="status"></div>
+                <p class="mt-4 text-gray-600">正在生成知识图谱...</p>
+                <small class="text-gray-400">请稍候，这可能需要一些时间</small>
+            </div>
+            <div class="empty-overlay" id="graphEmpty" style="display:none;">
+                <i class="bi bi-inbox" style="font-size:4rem; color: #cbd5e1;"></i>
+                <p class="mt-4 text-gray-500">文件内容为空或未能提取到实体</p>
+                <small class="text-gray-400" id="graphEmptyMsg"></small>
+            </div>
+            <div class="error-overlay" id="graphError" style="display:none;">
+                <i class="bi bi-exclamation-triangle" style="font-size:4rem; color: #f87171;"></i>
+                <p class="mt-4 text-gray-500">图谱生成失败</p>
+                <small class="text-gray-400" id="graphErrorMsg"></small>
+            </div>
+        `;
+        graphContainer.innerHTML = overlayHTML;
+    }
+
+    graphLoading.style.display = 'flex';
+    graphEmpty.style.display = 'none';
+    graphError.style.display = 'none';
+
+    if (graphNetwork) {
+        graphNetwork.destroy();
+        graphNetwork = null;
+    }
+
+    // 使用单例模式管理模态框实例
+    if (!graphModalInstance) {
+        const modalElement = document.getElementById('graphModal');
+        graphModalInstance = new bootstrap.Modal(modalElement);
+        
+        // 添加关闭事件处理
+        modalElement.addEventListener('hidden.bs.modal', function () {
+            if (graphNetwork) {
+                graphNetwork.destroy();
+                graphNetwork = null;
+            }
+            // 清理容器，保留覆盖层
+            const container = document.getElementById('graphContainer');
+            if (container) {
+                const overlayHTML = `
+                    <div class="loading-overlay" id="graphLoading">
+                        <div class="spinner-border text-indigo-500" style="width: 3rem; height: 3rem;" role="status"></div>
+                        <p class="mt-4 text-gray-600">正在生成知识图谱...</p>
+                        <small class="text-gray-400">请稍候，这可能需要一些时间</small>
+                    </div>
+                    <div class="empty-overlay" id="graphEmpty" style="display:none;">
+                        <i class="bi bi-inbox" style="font-size:4rem; color: #cbd5e1;"></i>
+                        <p class="mt-4 text-gray-500">文件内容为空或未能提取到实体</p>
+                        <small class="text-gray-400" id="graphEmptyMsg"></small>
+                    </div>
+                    <div class="error-overlay" id="graphError" style="display:none;">
+                        <i class="bi bi-exclamation-triangle" style="font-size:4rem; color: #f87171;"></i>
+                        <p class="mt-4 text-gray-500">图谱生成失败</p>
+                        <small class="text-gray-400" id="graphErrorMsg"></small>
+                    </div>
+                `;
+                container.innerHTML = overlayHTML;
+            }
+        });
+    }
+
+    graphModalInstance.show();
+
+    try {
+        const resp = await api(`/api/knowledge/files/${fileId}/graph`);
+
+        if (!resp.ok) {
+            const data = await resp.json();
+            throw new Error(data.detail || '生成失败');
+        }
+
+        const data = await resp.json();
+        currentGraphData = data;
+
+        document.getElementById('nodeCount').textContent = data.stats?.total_nodes || 0;
+        document.getElementById('edgeCount').textContent = data.stats?.total_edges || 0;
+        document.getElementById('graphGeneratedTime').textContent = formatTime(data.generated_at);
+        
+        if (data.cached) {
+            document.getElementById('graphCachedBadge').style.display = 'flex';
+            document.getElementById('clearCacheBtn').style.display = 'flex';
+        } else {
+            document.getElementById('graphCachedBadge').style.display = 'none';
+            document.getElementById('clearCacheBtn').style.display = 'none';
+        }
+
+        if (data.message && data.nodes.length === 0) {
+            graphLoading.style.display = 'none';
+            graphEmpty.style.display = 'flex';
+            graphEmptyMsg.textContent = data.message;
+            return;
+        }
+
+        if (data.nodes.length === 0) {
+            graphLoading.style.display = 'none';
+            graphEmpty.style.display = 'flex';
+            graphEmptyMsg.textContent = '未能从文件中提取到实体和关系';
+            return;
+        }
+
+        graphLoading.style.display = 'none';
+
+        // 创建网络容器，添加唯一标识以便后续清理
+        const container = document.createElement('div');
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.id = 'visNetworkContainer';
+        
+        // 只移除之前的网络容器，保留覆盖层
+        const graphContainer = document.getElementById('graphContainer');
+        const oldNetworkContainer = graphContainer.querySelector('#visNetworkContainer');
+        if (oldNetworkContainer) {
+            graphContainer.removeChild(oldNetworkContainer);
+        }
+        // 隐藏覆盖层
+        const overlays = graphContainer.querySelectorAll('.loading-overlay, .empty-overlay, .error-overlay');
+        overlays.forEach(overlay => overlay.style.display = 'none');
+        
+        graphContainer.appendChild(container);
+
+        const nodes = new vis.DataSet(data.nodes.map(n => ({
+            id: n.id,
+            label: n.label,
+            title: n.title,
+            color: n.color,
+            font: n.font,
+            shape: n.shape,
+            size: n.size,
+            shadow: n.shadow,
+            entity_type: n.entity_type,
+            entity_label: n.entity_label,
+        })));
+
+        const edges = new vis.DataSet(data.edges.map(e => ({
+            from: e.from,
+            to: e.to,
+            label: e.label,
+            arrows: e.arrows,
+            font: e.font,
+            color: e.color,
+            smooth: e.smooth,
+            width: e.width,
+        })));
+
+        const options = {
+            nodes: {
+                borderWidth: 2,
+                shadow: true,
+                borderWidthSelected: 3,
+            },
+            edges: {
+                width: 2,
+                smooth: {
+                    type: 'continuous',
+                    roundness: 0.5,
+                },
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.1)',
+                },
+            },
+            physics: {
+                stabilization: {
+                    enabled: true,
+                    iterations: 200,
+                    updateInterval: 25,
+                },
+                barnesHut: {
+                    gravitationalConstant: -3000,
+                    springConstant: 0.04,
+                    springLength: 180,
+                    damping: 0.09,
+                },
+                minVelocity: 0.75,
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 100,
+                zoomView: true,
+                dragView: true,
+                dragNodes: true,
+                hideEdgesOnDrag: false,
+                hideEdgesOnZoom: false,
+            },
+            layout: {
+                improvedLayout: true,
+                randomSeed: 42,
+            },
+            manipulation: {
+                enabled: false,
+            },
+        };
+
+        graphNetwork = new vis.Network(container, { nodes, edges }, options);
+
+        graphNetwork.on('click', function (params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                showNodeDetail(nodeId);
+            }
+        });
+
+        graphNetwork.on('stabilizationIterationsDone', function () {
+            graphNetwork.setOptions({ physics: { stabilization: { enabled: false } } });
+        });
+
+    } catch (e) {
+        graphLoading.style.display = 'none';
+        graphError.style.display = 'flex';
+        graphErrorMsg.textContent = e.message || '未知错误';
+        showToast('知识图谱生成失败: ' + (e.message || '未知错误'), 'error');
+    }
+}
+
+function showNodeDetail(nodeId) {
+    if (!currentGraphData || !graphNetwork) return;
+
+    const nodeData = currentGraphData.nodes.find(n => n.id === nodeId);
+    if (!nodeData) return;
+
+    const nodeLabel = nodeData.entity_label || nodeData.label;
+    const nodeType = nodeData.entity_type || '其他';
+
+    const relatedNodes = [];
+    currentGraphData.edges.forEach(edge => {
+        if (edge.from === nodeId) {
+            const targetNode = currentGraphData.nodes.find(n => n.id === edge.to);
+            if (targetNode) {
+                relatedNodes.push({
+                    id: edge.to,
+                    label: targetNode.entity_label || targetNode.label,
+                    relation: edge.label || '相关',
+                    direction: 'out'
+                });
+            }
+        } else if (edge.to === nodeId) {
+            const sourceNode = currentGraphData.nodes.find(n => n.id === edge.from);
+            if (sourceNode) {
+                relatedNodes.push({
+                    id: edge.from,
+                    label: sourceNode.entity_label || sourceNode.label,
+                    relation: edge.label || '相关',
+                    direction: 'in'
+                });
+            }
+        }
+    });
+
+    let typeBadgeClass = 'other';
+    const typeMap = { '人物': 'person', '组织': 'organization', '概念': 'concept', '技术': 'technology', '其他': 'other' };
+    typeBadgeClass = typeMap[nodeType] || 'other';
+
+    const content = `
+        <div class="node-detail-panel">
+            <div class="node-detail-title">${escapeHtml(nodeLabel)}</div>
+            <div class="node-detail-info">
+                <div class="node-detail-label">实体类型</div>
+                <div class="node-detail-value">
+                    <span class="entity-type-badge ${typeBadgeClass}">${nodeType}</span>
+                </div>
+            </div>
+            ${relatedNodes.length > 0 ? `
+            <div class="related-nodes-list">
+                <div class="related-nodes-title">关联实体 (${relatedNodes.length})</div>
+                ${relatedNodes.map(rn => `
+                    <div class="related-node-item" onclick="focusNode(${rn.id})">
+                        <span class="related-node-label">${escapeHtml(rn.label)}</span>
+                        <span class="related-node-relation">${rn.direction === 'out' ? '→' : '←'} ${rn.relation}</span>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    document.getElementById('nodeDetailContent').innerHTML = content;
+    const modal = new bootstrap.Modal(document.getElementById('nodeDetailModal'));
+    modal.show();
+}
+
+function focusNode(nodeId) {
+    if (!graphNetwork) return;
+    graphNetwork.focus(nodeId, {
+        scale: 1.2,
+        animation: {
+            duration: 500,
+            easingFunction: 'easeInOutQuad'
+        }
+    });
+    graphNetwork.selectNodes([nodeId]);
+    bootstrap.Modal.getInstance(document.getElementById('nodeDetailModal')).hide();
+}
+
+async function regenerateGraph() {
+    if (!currentGraphFileId) return;
+    
+    const fileName = document.getElementById('graphFileName').textContent;
+    await showKnowledgeGraph(currentGraphFileId, fileName);
+}
+
+function resetGraphView() {
+    if (!graphNetwork) return;
+    graphNetwork.fit({
+        animation: {
+            duration: 500,
+            easingFunction: 'easeInOutQuad'
+        }
+    });
+}
+
+function fitGraphView() {
+    if (!graphNetwork) return;
+    graphNetwork.fit();
+}
+
+async function clearGraphCache() {
+    if (!currentGraphFileId) return;
+    
+    if (!confirm('确定清除此文件的图谱缓存？下次查看时将重新生成。')) return;
+
+    try {
+        const resp = await api(`/api/knowledge/files/${currentGraphFileId}/graph`, { method: 'DELETE' });
+        if (resp.ok) {
+            showToast('缓存已清除', 'success');
+            document.getElementById('graphCachedBadge').style.display = 'none';
+            document.getElementById('clearCacheBtn').style.display = 'none';
+        } else {
+            const data = await resp.json();
+            showToast(data.detail || '清除失败', 'error');
+        }
+    } catch (e) {
+        showToast('清除失败', 'error');
     }
 }
 

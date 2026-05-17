@@ -18,7 +18,8 @@ from database import get_db
 from models import User, OperationLog
 from schemas import (
     UserRegister, UserLogin, UserResponse, ChangePassword, TokenResponse,
-    UpdateUsername, AvatarUploadResponse, OperationLogResponse
+    UpdateUsername, AvatarUploadResponse, OperationLogResponse,
+    JWAccountRequest, JWAccountResponse
 )
 from auth import hash_password, verify_password, create_access_token, get_current_user
 
@@ -350,3 +351,118 @@ async def get_user(
             detail="用户不存在",
         )
     return user
+
+
+# 简单的可逆加密函数（用于存储教务系统密码）
+def _simple_encrypt(text: str, key: str = "chatbot_jw_key") -> str:
+    """简单的XOR加密，用于存储教务系统密码"""
+    result = []
+    for i, char in enumerate(text):
+        result.append(chr(ord(char) ^ ord(key[i % len(key)])))
+    return ''.join(result)
+
+def _simple_decrypt(text: str, key: str = "chatbot_jw_key") -> str:
+    """简单的XOR解密"""
+    return _simple_encrypt(text, key)
+
+
+# 教务系统账号密码管理
+@router.put("/users/me/jwaccount", response_model=JWAccountResponse)
+async def update_jw_account(
+    data: JWAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    保存或修改教务系统账号密码
+    
+    Args:
+        data: 包含教务系统账号(jw_account)和密码(jw_password)
+        
+    Returns:
+        更新结果
+    """
+    # 验证账号格式（通常为学号）
+    if not data.jw_account.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="教务系统账号不能为空",
+        )
+    
+    if not data.jw_password.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="教务系统密码不能为空",
+        )
+    
+    # 记录修改前的值
+    before_account = current_user.jw_account or "未设置"
+    
+    # 更新教务系统账号密码（密码使用可逆加密存储）
+    current_user.jw_account = data.jw_account.strip()
+    current_user.jw_password = _simple_encrypt(data.jw_password.strip())
+    
+    await db.commit()
+    await db.refresh(current_user)
+    
+    await add_operation_log(
+        db=db,
+        user_id=current_user.id,
+        operation_type="update_jw_account",
+        target_type="user",
+        target_id=current_user.id,
+        before_value=f"jw_account={before_account}, jw_password=******",
+        after_value=f"jw_account={current_user.jw_account}, jw_password=******",
+    )
+    
+    return JWAccountResponse(
+        jw_account=current_user.jw_account,
+        message="教务系统账号密码保存成功"
+    )
+
+
+@router.get("/users/me/jwaccount", response_model=JWAccountResponse)
+async def get_jw_account(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取当前用户的教务系统账号信息（不返回密码）
+    
+    Returns:
+        教务系统账号（仅账号，不含密码）
+    """
+    return JWAccountResponse(
+        jw_account=current_user.jw_account,
+        message="获取成功"
+    )
+
+
+@router.delete("/users/me/jwaccount")
+async def delete_jw_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    删除保存的教务系统账号密码
+    
+    Returns:
+        删除结果
+    """
+    before_account = current_user.jw_account or "未设置"
+    
+    current_user.jw_account = None
+    current_user.jw_password = None
+    
+    await db.commit()
+    
+    await add_operation_log(
+        db=db,
+        user_id=current_user.id,
+        operation_type="delete_jw_account",
+        target_type="user",
+        target_id=current_user.id,
+        before_value=f"jw_account={before_account}, jw_password=******",
+        after_value="jw_account=None, jw_password=None",
+    )
+    
+    return {"message": "教务系统账号密码已删除"}

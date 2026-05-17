@@ -25,5 +25,11 @@ Pillow>=10.2.0
 chromadb>=0.4.22
 openai>=1.12.0
 
+# HTTP Client (教务系统模拟登录 / 联网搜索)
+httpx>=0.27.0
+
+# OCR (教务系统验证码识别)
+ddddocr>=1.4.0
+
 # Utilities
 python-dotenv>=1.0.0

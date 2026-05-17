@@ -18,15 +18,20 @@ from database import init_db, async_session, Base, engine
 from models import User
 from auth import hash_password
 
-from routers import users, conversations, chat, knowledge, admin
+from routers import users, conversations, chat, knowledge, admin, search, emotion, course_schedule
 
+# 加载环境变量配置
 load_dotenv()
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+# 减少一些库的调试日志
+logging.getLogger("aiosqlite").setLevel(logging.INFO)
+logging.getLogger("httpx").setLevel(logging.INFO)
 
 logger = logging.getLogger("main")
 
@@ -86,6 +91,9 @@ app.include_router(users.router)
 app.include_router(conversations.router)
 app.include_router(chat.router)
 app.include_router(knowledge.router)
+app.include_router(search.router)
+app.include_router(emotion.router)
+app.include_router(course_schedule.router)
 app.include_router(admin.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

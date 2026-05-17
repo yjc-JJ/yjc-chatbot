@@ -3,7 +3,7 @@ ORM 模型定义
 User, Conversation, Message, KnowledgeFile, OperationLog, SharedKnowledge
 """
 import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -17,6 +17,9 @@ class User(Base):
     username = Column(String(50), nullable=True, default=None)
     avatar_url = Column(String(500), nullable=True, default=None)
     is_admin = Column(Boolean, default=False)
+    # 教务系统账号密码（加密存储）
+    jw_account = Column(String(50), nullable=True, default=None)
+    jw_password = Column(String(255), nullable=True, default=None)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -46,6 +49,9 @@ class Message(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(50), nullable=False)
     content = Column(Text, nullable=False)
+    # 情感分析字段
+    emotion = Column(String(20), nullable=True, default=None)
+    confidence = Column(Float, nullable=True, default=None)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     conversation = relationship("Conversation", back_populates="messages")
@@ -95,3 +101,29 @@ class SharedKnowledge(Base):
 
     user = relationship("User", back_populates="shared_knowledges")
     knowledge_file = relationship("KnowledgeFile", back_populates="shared_knowledges")
+
+
+class KnowledgeGraph(Base):
+    __tablename__ = "knowledge_graphs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    knowledge_file_id = Column(Integer, ForeignKey("knowledge_files.id", ondelete="CASCADE"), nullable=False, index=True)
+    graph_data = Column(Text, nullable=False)
+    node_count = Column(Integer, default=0)
+    edge_count = Column(Integer, default=0)
+    generated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    knowledge_file = relationship("KnowledgeFile")
+
+
+class SearchCache(Base):
+    __tablename__ = "search_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    query = Column(String(500), nullable=False, index=True)
+    result = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SearchCache query={self.query[:20]}...>"
